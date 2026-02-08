@@ -1,0 +1,65 @@
+name:                llvm-ng
+version:             0.1.0.0
+github:              "Innf107/llvm-ng"
+license:             BSD-3-Clause
+author:              "welltypedwitch"
+maintainer:          "alice@welltypedwit.ch"
+copyright:           "2026 Alice Schneider"
+
+extra-source-files:
+- README.md
+- CHANGELOG.md
+
+description:         Please see the README on GitHub at <https://github.com/Innf107/llvm-ng#readme>
+
+dependencies:
+- base >= 4.7 && < 5
+- llvm-ffi
+- text
+- vector
+- filepath
+- template-haskell
+
+ghc-options:
+- -Wall
+- -Wcompat
+- -Widentities
+- -Wincomplete-record-updates
+- -Wincomplete-uni-patterns
+- -Wmissing-export-lists
+- -Wmissing-home-modules
+- -Wpartial-fields
+- -Wredundant-constraints
+
+library:
+  source-dirs: src
+
+executables:
+  llvm-ng-example:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - llvm-ng
+
+tests:
+  llvm-ng-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - llvm-ng
+
+language: GHC2024
+
+default-extensions:
+- BlockArguments
+- ImplicitParams
+- OverloadedStrings
+- OverloadedLists

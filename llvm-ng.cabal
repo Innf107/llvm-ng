@@ -1,0 +1,103 @@
+cabal-version: 2.2
+
+-- This file has been generated from package.yaml by hpack version 0.37.0.
+--
+-- see: https://github.com/sol/hpack
+
+name:           llvm-ng
+version:        0.1.0.0
+description:    Please see the README on GitHub at <https://github.com/Innf107/llvm-ng#readme>
+homepage:       https://github.com/Innf107/llvm-ng#readme
+bug-reports:    https://github.com/Innf107/llvm-ng/issues
+author:         welltypedwitch
+maintainer:     alice@welltypedwit.ch
+copyright:      2026 Alice Schneider
+license:        BSD-3-Clause
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    README.md
+    CHANGELOG.md
+
+source-repository head
+  type: git
+  location: https://github.com/Innf107/llvm-ng
+
+library
+  exposed-modules:
+      LLVM.Core
+      LLVM.Error
+      LLVM.FFI.Missing
+      LLVM.InstructionBuilder
+      LLVM.Internal.Error
+      LLVM.Internal.TH
+      LLVM.Internal.Wrappers
+  other-modules:
+      Paths_llvm_ng
+  autogen-modules:
+      Paths_llvm_ng
+  hs-source-dirs:
+      src
+  default-extensions:
+      BlockArguments
+      ImplicitParams
+      OverloadedStrings
+      OverloadedLists
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
+  build-depends:
+      base >=4.7 && <5
+    , filepath
+    , llvm-ffi
+    , template-haskell
+    , text
+    , vector
+  default-language: GHC2024
+
+executable llvm-ng-example
+  main-is: Main.hs
+  other-modules:
+      Paths_llvm_ng
+  autogen-modules:
+      Paths_llvm_ng
+  hs-source-dirs:
+      app
+  default-extensions:
+      BlockArguments
+      ImplicitParams
+      OverloadedStrings
+      OverloadedLists
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , filepath
+    , llvm-ffi
+    , llvm-ng
+    , template-haskell
+    , text
+    , vector
+  default-language: GHC2024
+
+test-suite llvm-ng-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Paths_llvm_ng
+  autogen-modules:
+      Paths_llvm_ng
+  hs-source-dirs:
+      test
+  default-extensions:
+      BlockArguments
+      ImplicitParams
+      OverloadedStrings
+      OverloadedLists
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , filepath
+    , llvm-ffi
+    , llvm-ng
+    , template-haskell
+    , text
+    , vector
+  default-language: GHC2024
