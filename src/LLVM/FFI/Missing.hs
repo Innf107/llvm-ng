@@ -395,3 +395,50 @@ foreign import capi "llvm-c/Core.h LLVMBuildFCmp"
         Raw.ValueRef ->
         CString ->
         IO Raw.ValueRef
+
+foreign import capi "llvm-c/Core.h LLVMX86AMXTypeInContext"
+    x86AMXTypeInContext ::
+        Raw.ContextRef -> IO Raw.TypeRef
+
+foreign import capi "llvm-c/Core.h LLVMTokenTypeInContext"
+    tokenTypeInContext ::
+        Raw.ContextRef -> IO Raw.TypeRef
+
+foreign import capi "llvm-c/Core.h LLVMMetadataTypeInContext"
+    metadataTypeInContext ::
+        Raw.ContextRef -> IO Raw.TypeRef
+
+foreign import ccall "llvm-c/Core.h LLVMTargetExtTypeInContext"
+    targetExtTypeInContext ::
+        Raw.ContextRef ->
+        CString ->
+        Ptr Raw.TypeRef ->
+        CUInt ->
+        Ptr CUInt ->
+        CUInt ->
+        IO Raw.TypeRef
+
+foreign import capi "llvm-c/Core.h LLVMGetTargetExtTypeName"
+    getTargetExtTypeName ::
+        Raw.TypeRef -> IO CString
+
+foreign import capi "llvm-c/Core.h LLVMGetTargetExtTypeNumTypeParams"
+    getTargetExtTypeNumTypeParams ::
+        Raw.TypeRef -> IO CUInt
+
+
+foreign import capi "llvm-c/Core.h LLVMGetTargetExtTypeTypeParam"
+    getTargetExtTypeTypeParam ::
+        Raw.TypeRef ->
+        CUInt ->
+        IO Raw.TypeRef
+
+foreign import capi "llvm-c/Core.h LLVMGetTargetExtTypeNumIntParams"
+    getTargetExtTypeNumIntParams ::
+        Raw.TypeRef -> IO CUInt
+
+foreign import capi "llvm-c/Core.h LLVMGetTargetExtTypeIntParam"
+    getTargetExtTypeIntParam ::
+        Raw.TypeRef ->
+        CUInt ->
+        IO CUInt

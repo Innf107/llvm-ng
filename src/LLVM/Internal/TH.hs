@@ -147,6 +147,7 @@ wrapResult rawType = case rawType of
     TH.AppT (TH.ConT monadName) (TH.ConT typeName)
         | monadName /= ''IO -> fail $ "Unable to wrap result in unsupported monad " <> show monadName
         | typeName == ''Raw.ValueRef -> wrapNewtype ''Wrappers.Value 'Wrappers.MkValue
+        | typeName == ''Raw.TypeRef -> wrapNewtype ''Wrappers.Type 'Wrappers.MkType
         | typeName == ''Raw.BasicBlockRef -> wrapNewtype ''Wrappers.BasicBlock 'Wrappers.MkBlock
         | typeName == ''Wrappers.MetaDataRef -> wrapNewtype ''Wrappers.MetaData 'Wrappers.MkMetaData
         | typeName == ''Wrappers.RawFastMathFlags -> wrapNewtype ''Wrappers.FastMathFlags 'Wrappers.MkFastMathFlags

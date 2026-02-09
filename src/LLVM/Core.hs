@@ -26,6 +26,12 @@ module LLVM.Core (
     typedPointerType,
     voidType,
     vectorType,
+    labelType,
+    x86AMXType,
+    tokenType,
+    metadataType,
+    targetExtType,
+    getTargetExtTypeName,
     dumpModule,
     printModuleToFile,
     printModuleToString,
@@ -33,6 +39,13 @@ module LLVM.Core (
     getParam,
     constInt,
     constIntOfString,
+    constReal,
+    constRealOfString,
+    constIntGetZExtValue,
+    getTargetExtTypeNumTypeParams,
+    getTargetExtTypeTypeParam,
+    getTargetExtTypeNumIntParams,
+    getTargetExtTypeIntParam,
 ) where
 
 import Control.Exception (mask_)
@@ -59,7 +72,7 @@ import LLVM.Internal.Wrappers (
     Value (..),
     withContext,
     withModule,
-    withTypeArray,
+    withTypeArray, withUnsignedArray,
  )
 import System.IO.Unsafe (unsafePerformIO)
 import System.OsPath (OsPath)
@@ -191,9 +204,6 @@ If you want to create a typed poniter, use 'typedPointerType'.
 pointerTypeWithAddressSpace :: (?context :: Context) => Word -> Type
 pointerTypeWithAddressSpace addressSpace = typedPointerType voidType addressSpace
 
-voidType :: (?context :: Context) => Type
-voidType = MkType $ unsafePerformIO $ withContext ?context Raw.voidTypeInContext
-
 {- | Create a vector type that contains a defined type and has a specific number of elements.
 
 The created type will exist in the context thats its element type exists in.
@@ -202,7 +212,42 @@ vectorType :: Type -> Int -> Type
 vectorType (MkType elementType) elementCount =
     MkType $ unsafePerformIO (Raw.vectorType elementType (fromIntegral elementCount))
 
+voidType :: (?context :: Context) => Type
+voidType = MkType $ unsafePerformIO $ withContext ?context Raw.voidTypeInContext
 
+labelType :: (?context :: Context) => Type
+labelType = MkType $ unsafePerformIO $ withContext ?context Raw.labelTypeInContext
+
+x86AMXType :: (?context :: Context) => Type
+x86AMXType = MkType $ unsafePerformIO $ withContext ?context Missing.x86AMXTypeInContext
+
+tokenType :: (?context :: Context) => Type
+tokenType = MkType $ unsafePerformIO $ withContext ?context Missing.tokenTypeInContext
+
+metadataType :: (?context :: Context) => Type
+metadataType = MkType $ unsafePerformIO $ withContext ?context Missing.metadataTypeInContext
+
+targetExtType :: (?context :: Context) => Text -> Storable.Vector Type -> Storable.Vector Int -> Type
+targetExtType name typeParams intParams = MkType $ unsafePerformIO $
+    withContext ?context $ \contextRef ->
+        Text.Foreign.withCString name \nameCString ->
+        withTypeArray typeParams \typeParamPtr typeParamLength ->
+            withUnsignedArray intParams \intParamPtr intParamLength -> do
+                Missing.targetExtTypeInContext contextRef nameCString typeParamPtr typeParamLength intParamPtr intParamLength
+
+-- | Obtain the name for this target extension type. 
+getTargetExtTypeName :: Type -> Text
+getTargetExtTypeName (MkType typeRef) = unsafePerformIO do
+    cstring <- Missing.getTargetExtTypeName typeRef
+    Text.Foreign.peekCString cstring
+
+wrapDirectlyPure 'Missing.getTargetExtTypeNumTypeParams "Obtain the number of type parameters for this target extension type."
+
+wrapDirectlyPure 'Missing.getTargetExtTypeTypeParam "Get the type parameter at the given index for the target extension type."
+
+wrapDirectlyPure 'Missing.getTargetExtTypeNumIntParams "Obtain the number of int parameters for this target extension type."
+
+wrapDirectlyPure 'Missing.getTargetExtTypeIntParam "Get the int parameter at the given index for the target extension type."
 
 -- | Dump a representation of a module to stderr.
 dumpModule :: Module -> IO ()

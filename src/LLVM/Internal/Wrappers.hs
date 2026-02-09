@@ -10,6 +10,7 @@ module LLVM.Internal.Wrappers (
     withValueArray,
     Type (..),
     withTypeArray,
+    withUnsignedArray,
     OpaqueMetaData,
     MetaDataRef,
     MetaData (..),
@@ -71,6 +72,11 @@ withTypeArray vector cont = do
     -- This is safe since `Type` newtype derives its `Storable` instance from the underlying TypeRef
     let vectorOfPointers = Storable.unsafeCoerceVector @Type @Raw.TypeRef vector
     Storable.unsafeWith vectorOfPointers \ptr -> cont ptr (fromIntegral (Storable.length vector))
+
+withUnsignedArray :: Storable.Vector Int -> (Ptr CUInt -> CUInt -> IO a) -> IO a
+withUnsignedArray vector cont = do
+  let vectorOfCUInts = Storable.map (fromIntegral) vector
+  Storable.unsafeWith vectorOfCUInts \ptr -> cont ptr (fromIntegral (Storable.length vector))
 
 data OpaqueMetaData
 type MetaDataRef = Ptr OpaqueMetaData
