@@ -7,7 +7,6 @@
 
 module Main (main) where
 
-import LLVM.FFI.Core qualified as Raw
 import LLVM.Core qualified as LLVM
 import LLVM.InstructionBuilder qualified as LLVM
 import System.OsPath (osp)
@@ -44,14 +43,15 @@ main = do
     result <- LLVM.buildAdd builder firstResult secondResult ""
     _ <- LLVM.buildRet builder result
 
-    main <- LLVM.addFunction module_ "main" (LLVM.functionType [LLVM.pointerType (LLVM.pointerType LLVM.int8Type 0) 0, LLVM.int32Type] LLVM.int64Type False)
+    mainFunction <- LLVM.addFunction module_ "main" (LLVM.functionType [LLVM.pointerType, LLVM.int32Type] LLVM.int64Type False)
 
-    startBlock <- LLVM.appendBasicBlock main ""
+    startBlock <- LLVM.appendBasicBlock mainFunction ""
 
     LLVM.positionBuilderAtEnd builder startBlock
-    result <- LLVM.buildCall builder fibType fib [LLVM.constInt LLVM.int64Type 10 False] ""
-    _ <- LLVM.buildRet builder result
+    fibResult <- LLVM.buildCall builder fibType fib [LLVM.constInt LLVM.int64Type 10 False] ""
+    _ <- LLVM.buildRet builder fibResult
 
     LLVM.printModuleToFile module_ ([osp|example.ll|])
 
     LLVM.dumpModule module_
+

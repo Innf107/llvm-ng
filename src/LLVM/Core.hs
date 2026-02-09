@@ -22,6 +22,9 @@ module LLVM.Core (
     structType,
     arrayType,
     pointerType,
+    pointerTypeWithAddressSpace,
+    typedPointerType,
+    voidType,
     vectorType,
     dumpModule,
     printModuleToFile,
@@ -164,10 +167,32 @@ arrayType (MkType elementType) elementCount =
 {- | Create a pointer type that points to a defined type.
 
 The created type will exist in the context that its pointee type exists in.
+
+By default, modern versions of LLVM ignore the pointed-to type. (https://llvm.org/docs/OpaquePointers.html#the-opaque-pointer-type
+)
+For this reason, you will probably want to use 'pointerType' or 'pointerTypeWithAddressSpace' instead.
 -}
-pointerType :: Type -> Word -> Type
-pointerType (MkType elementType) addressSpace =
+typedPointerType :: Type -> Word -> Type
+typedPointerType (MkType elementType) addressSpace =
     MkType $ unsafePerformIO (Raw.pointerType elementType (fromIntegral addressSpace))
+
+{- | Create a generic pointer type.
+
+If you need to support a non-default address space, use 'pointerTypeWithAddressSpace' and if you want to create
+    a typed pointer, use 'typedPointerType'.
+-}
+pointerType :: (?context :: Context) => Type
+pointerType = typedPointerType voidType 0
+
+{-| Create a generic pointer type with a specified address space.
+
+If you want to create a typed poniter, use 'typedPointerType'.
+-}
+pointerTypeWithAddressSpace :: (?context :: Context) => Word -> Type
+pointerTypeWithAddressSpace addressSpace = typedPointerType voidType addressSpace
+
+voidType :: (?context :: Context) => Type
+voidType = MkType $ unsafePerformIO $ withContext ?context Raw.voidTypeInContext
 
 {- | Create a vector type that contains a defined type and has a specific number of elements.
 
@@ -176,6 +201,8 @@ The created type will exist in the context thats its element type exists in.
 vectorType :: Type -> Int -> Type
 vectorType (MkType elementType) elementCount =
     MkType $ unsafePerformIO (Raw.vectorType elementType (fromIntegral elementCount))
+
+
 
 -- | Dump a representation of a module to stderr.
 dumpModule :: Module -> IO ()
