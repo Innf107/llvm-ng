@@ -5,11 +5,14 @@ module LLVM.Core (
     Context,
     Value,
     Type,
+    FunctionType,
+    unsafeTypeAsFunctionType,
+    unsafeFunctionTypeAsType,
     MetaData,
     FastMathFlags,
     IntPredicate (..),
     RealPredicate (..),
-    BasicBlock(..),
+    BasicBlock (..),
     contextCreate,
     moduleCreateWithName,
     addFunction,
@@ -65,20 +68,23 @@ import LLVM.Internal.Wrappers (
     BasicBlock (..),
     Context (..),
     FastMathFlags,
+    FunctionType (MkFunctionType),
     IntPredicate (..),
     MetaData,
     Module (..),
     RealPredicate (..),
     Type (..),
     Value (..),
+    unsafeFunctionTypeAsType,
+    unsafeTypeAsFunctionType,
     withContext,
     withModule,
-    withTypeArray, withUnsignedArray,
+    withTypeArray,
+    withUnsignedArray,
  )
 import System.IO.Unsafe (unsafePerformIO)
 import System.OsPath (OsPath)
 import System.OsPath qualified as OsPath
-import Unsafe.Coerce (unsafeCoerce)
 
 {- | Create a new context.
 
@@ -101,8 +107,9 @@ moduleCreateWithName name = do
     MkModule <$> newForeignPtr rawModule (Raw.disposeModule rawModule)
 
 -- | Add a function to a module under a specified name.
-addFunction :: Module -> Text -> Type -> IO Value
-addFunction module_ name (MkType type_) = do
+addFunction :: Module -> Text -> FunctionType -> IO Value
+addFunction module_ name functionType = do
+    let MkType type_ = unsafeFunctionTypeAsType functionType
     function <- Text.Foreign.withCString name \nameCStr -> do
         withModule module_ \modulePtr -> do
             Raw.addFunction modulePtr nameCStr type_
@@ -112,11 +119,11 @@ addFunction module_ name (MkType type_) = do
 
 The function is defined as a tuple of a list of parameter types, a return Type, and whether the function is variadic.
 -}
-functionType :: Storable.Vector Type -> Type -> Bool -> Type
+functionType :: Storable.Vector Type -> Type -> Bool -> FunctionType
 functionType parameterTypes (MkType returnType) isVarArg = unsafePerformIO do
     ref <- withTypeArray parameterTypes \ptr size -> do
         Raw.functionType returnType ptr size (Raw.consBool isVarArg)
-    pure (MkType ref)
+    pure (unsafeTypeAsFunctionType (MkType ref))
 
 -- | Construct an integer type with the given number of bits
 intType :: (?context :: Context) => Int -> Type
@@ -198,7 +205,7 @@ If you need to support a non-default address space, use 'pointerTypeWithAddressS
 pointerType :: (?context :: Context) => Type
 pointerType = typedPointerType voidType 0
 
-{-| Create a generic pointer type with a specified address space.
+{- | Create a generic pointer type with a specified address space.
 
 If you want to create a typed poniter, use 'typedPointerType'.
 -}
@@ -229,14 +236,15 @@ metadataType :: (?context :: Context) => Type
 metadataType = MkType $ unsafePerformIO $ withContext ?context Missing.metadataTypeInContext
 
 targetExtType :: (?context :: Context) => Text -> Storable.Vector Type -> Storable.Vector Int -> Type
-targetExtType name typeParams intParams = MkType $ unsafePerformIO $
-    withContext ?context $ \contextRef ->
-        Text.Foreign.withCString name \nameCString ->
-        withTypeArray typeParams \typeParamPtr typeParamLength ->
-            withUnsignedArray intParams \intParamPtr intParamLength -> do
-                Missing.targetExtTypeInContext contextRef nameCString typeParamPtr typeParamLength intParamPtr intParamLength
+targetExtType name typeParams intParams = MkType $
+    unsafePerformIO $
+        withContext ?context $ \contextRef ->
+            Text.Foreign.withCString name \nameCString ->
+                withTypeArray typeParams \typeParamPtr typeParamLength ->
+                    withUnsignedArray intParams \intParamPtr intParamLength -> do
+                        Missing.targetExtTypeInContext contextRef nameCString typeParamPtr typeParamLength intParamPtr intParamLength
 
--- | Obtain the name for this target extension type. 
+-- | Obtain the name for this target extension type.
 getTargetExtTypeName :: Type -> Text
 getTargetExtTypeName (MkType typeRef) = unsafePerformIO do
     cstring <- Missing.getTargetExtTypeName typeRef

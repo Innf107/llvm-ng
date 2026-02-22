@@ -2,13 +2,14 @@
 {-# LANGUAGE CApiFFI #-}
 -- Workaround for https://gitlab.haskell.org/ghc/ghc/-/issues/26852
 {-# OPTIONS_GHC -optc -Wno-incompatible-pointer-types #-}
+{-# OPTIONS_GHC -optc -Wno-discarded-qualifiers #-}
 
 module LLVM.FFI.Missing where
 
 import Foreign.C (CInt (..), CString, CUInt (..))
 import Foreign.Ptr (Ptr)
 import LLVM.FFI.Core qualified as Raw
-import LLVM.Internal.Wrappers (IntPredicate, MetaDataRef, OperandBundleRef, RawFastMathFlags, RawGEPNoWrapFlags, RawIntPredicate, RawRealPredicate)
+import LLVM.Internal.Wrappers (IntPredicate, MetaDataRef, OperandBundleRef, RawFastMathFlags, RawGEPNoWrapFlags, RawIntPredicate, RawRealPredicate, FunctionTypeRef)
 
 foreign import capi unsafe "llvm-c/Core.h LLVMPrintModuleToFile"
     printModuleToFile ::
@@ -95,7 +96,7 @@ foreign import capi unsafe "llvm-c/Core.h LLVMBuilderSetDefaultFPMathTag"
 foreign import ccall unsafe "llvm-c/Core.h LLVMBuildCallBr"
     buildCallBr ::
         Raw.BuilderRef ->
-        Raw.TypeRef ->
+        FunctionTypeRef ->
         Raw.ValueRef ->
         Raw.BasicBlockRef ->
         Raw.BasicBlockRef ->
@@ -110,7 +111,7 @@ foreign import ccall unsafe "llvm-c/Core.h LLVMBuildCallBr"
 foreign import ccall unsafe "llvm-c/Core.h LLVMBuildInvokeWithOperandBundles"
     buildInvokeWithOperandBundles ::
         Raw.BuilderRef ->
-        Raw.TypeRef ->
+        FunctionTypeRef ->
         Raw.ValueRef ->
         Ptr Raw.ValueRef ->
         CUInt ->
@@ -322,7 +323,7 @@ foreign import capi "llvm-c/Core.h LLVMBuildIntCast2"
 foreign import ccall "llvm-c/Core.h LLVMBuildCallWithOperandBundles"
     buildCallWithOperandBundles ::
         Raw.BuilderRef ->
-        Raw.TypeRef ->
+        FunctionTypeRef ->
         Raw.ValueRef ->
         Ptr Raw.ValueRef ->
         CUInt ->
@@ -371,7 +372,7 @@ foreign import capi "llvm-c/Core.h LLVMGetAtomicSyncScopeID"
 foreign import capi "llvm-c/Core.h LLVMBuildCall2"
     buildCall2 ::
         Raw.BuilderRef ->
-        Raw.TypeRef ->
+        FunctionTypeRef ->
         Raw.ValueRef ->
         Ptr Raw.ValueRef ->
         CUInt ->

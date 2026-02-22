@@ -12,7 +12,7 @@ import Data.Text.Foreign qualified as Text.Foreign
 import Data.Vector.Storable qualified as Storable
 import Data.Word (Word64, Word8)
 import Foreign (Ptr)
-import Foreign.C (CInt, CUInt, CDouble)
+import Foreign.C (CDouble, CInt, CUInt)
 import Foreign.C.String (CString)
 import LLVM.FFI.Core qualified as Raw
 import LLVM.Internal.Wrappers qualified as Wrappers
@@ -88,6 +88,7 @@ wrapParameter rawType varName = case rawType of
         | typeName == ''Raw.BuilderRef -> wrapWith ''Wrappers.Builder 'Wrappers.withBuilder
         | typeName == ''Raw.BasicBlockRef -> wrapNewtype ''Wrappers.BasicBlock 'Wrappers.MkBlock
         | typeName == ''Raw.TypeRef -> wrapNewtype ''Wrappers.Type 'Wrappers.MkType
+        | typeName == ''Wrappers.FunctionTypeRef -> wrapNewtype ''Wrappers.FunctionType 'Wrappers.MkFunctionType
         | typeName == ''Wrappers.RawIntPredicate -> wrapFunction ''Wrappers.IntPredicate 'Wrappers.unwrapIntPredicate
         | typeName == ''Wrappers.RawRealPredicate -> wrapFunction ''Wrappers.RealPredicate 'Wrappers.unwrapRealPredicate
         | typeName == ''Wrappers.MetaDataRef -> wrapNewtype ''Wrappers.MetaData 'Wrappers.MkMetaData
@@ -148,6 +149,7 @@ wrapResult rawType = case rawType of
         | monadName /= ''IO -> fail $ "Unable to wrap result in unsupported monad " <> show monadName
         | typeName == ''Raw.ValueRef -> wrapNewtype ''Wrappers.Value 'Wrappers.MkValue
         | typeName == ''Raw.TypeRef -> wrapNewtype ''Wrappers.Type 'Wrappers.MkType
+        | typeName == ''Wrappers.FunctionTypeRef -> wrapNewtype ''Wrappers.FunctionType 'Wrappers.MkFunctionType
         | typeName == ''Raw.BasicBlockRef -> wrapNewtype ''Wrappers.BasicBlock 'Wrappers.MkBlock
         | typeName == ''Wrappers.MetaDataRef -> wrapNewtype ''Wrappers.MetaData 'Wrappers.MkMetaData
         | typeName == ''Wrappers.RawFastMathFlags -> wrapNewtype ''Wrappers.FastMathFlags 'Wrappers.MkFastMathFlags
@@ -172,7 +174,6 @@ splitType type_ = case type_ of
         let (rest, finalResult) = splitType result
         (argument : rest, finalResult)
     _ -> ([], type_)
-
 
 doubleToCDouble :: Double -> CDouble
 doubleToCDouble double = fromRational (toRational double)
