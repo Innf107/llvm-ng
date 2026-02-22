@@ -9,6 +9,7 @@ module LLVM.Core (
     FastMathFlags,
     IntPredicate (..),
     RealPredicate (..),
+    BasicBlock(..),
     contextCreate,
     moduleCreateWithName,
     addFunction,
