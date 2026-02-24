@@ -1,6 +1,12 @@
 {-# LANGUAGE TemplateHaskell #-}
-module LLVM.InstructionBuilder where
 
+module LLVM.InstructionBuilder (
+    module LLVM.InstructionBuilder,
+    Builder,
+) where
+
+import Data.Text (Text)
+import Data.Text.Foreign qualified as Text.Foreign
 import Data.Vector.Storable qualified as Storable
 import Foreign (Storable (sizeOf), allocaBytes)
 import Foreign.Concurrent (newForeignPtr)
@@ -15,14 +21,13 @@ import LLVM.Internal.Wrappers (
     Context,
     FastMathFlags (..),
     MetaData (..),
+    Type (..),
     Value (..),
     unsafeVectorFromCArray,
     withBuilder,
     withContext,
-    withValueArray, Type (..),
+    withValueArray,
  )
-import Data.Text (Text)
-import qualified Data.Text.Foreign as Text.Foreign
 
 createBuilder :: (?context :: Context) => IO Builder
 createBuilder = withContext ?context \context -> do
@@ -75,15 +80,11 @@ wrapDirectly 'Missing.builderSetDefaultFPMathTag "Set the default floating-point
 
 -- We cannot wrap LLVMGetBuilderContext since our ForeignPtr setup assumes that it has the only reference to the context.
 
-
 wrapDirectly 'Raw.buildRetVoid ""
 
 wrapDirectly 'Raw.buildRet ""
 
 wrapDirectly 'Raw.buildAggregateRet ""
-
-
-
 
 wrapDirectly 'Raw.buildBr ""
 
@@ -326,7 +327,6 @@ wrapDirectly 'Raw.buildFPCast ""
 
 -- TODO: LLVMGetCastOpCode
 
-
 wrapDirectly 'Missing.buildFCmp ""
 wrapDirectly 'Missing.buildICmp ""
 
@@ -387,7 +387,6 @@ wrapDirectly 'Missing.isAtomic "Returns whether an instruction is an atomic inst
 wrapDirectly 'Missing.getAtomicSyncScopeID "Returns the synchronization scope ID of an atomic instruction."
 
 wrapDirectly 'Missing.setAtomicSyncScopeID "Sets the synchronization scope ID of an atomic instruction."
-
 
 -- TODO: LLVMGetCmpXchgFailureOrdering
 -- TODO: LLVMSetCmpXchgFailureOrdering
