@@ -156,6 +156,7 @@ wrapResult rawType = case rawType of
         | typeName == ''Wrappers.RawGEPNoWrapFlags -> wrapNewtype ''Wrappers.GEPNoWrapFlags 'Wrappers.MkGEPNoWrapFlags
         | typeName == ''CUInt -> wrapFunction ''Int 'fromIntegral
         | typeName == ''CInt -> wrapFunction ''Int 'fromIntegral
+        | TH.nameBase typeName == "CUInt" -> wrapFunction ''Int 'fromIntegral
         | TH.nameBase typeName == "CULLong" -> wrapFunction ''Word64 'fromIntegral
         | typeName == ''Raw.Bool -> wrapFunction ''Bool 'Raw.deconsBool
         | otherwise -> fail $ "Unable to wrap unsupported type constructor " <> show typeName <> " in return position"

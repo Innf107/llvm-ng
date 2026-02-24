@@ -60,6 +60,7 @@ withBuilder :: Builder -> (Raw.BuilderRef -> IO a) -> IO a
 withBuilder (MkBuilder foreignPtr) cont = withForeignPtr foreignPtr \rawPtr -> cont rawPtr
 
 newtype BasicBlock = MkBlock (Raw.BasicBlockRef)
+  deriving newtype (Storable)
 
 newtype Value = MkValue (Raw.ValueRef)
   deriving newtype (Storable)

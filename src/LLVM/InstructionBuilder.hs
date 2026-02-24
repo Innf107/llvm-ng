@@ -5,13 +5,16 @@ module LLVM.InstructionBuilder (
     Builder,
 ) where
 
+import Control.Monad (when)
 import Data.Text (Text)
 import Data.Text.Foreign qualified as Text.Foreign
 import Data.Vector.Storable qualified as Storable
+import Data.Vector.Strict qualified as Vector
 import Foreign (Storable (sizeOf), allocaBytes)
 import Foreign.Concurrent (newForeignPtr)
 import Foreign.Ptr (nullPtr)
 import LLVM.Core (FastMathFlags)
+import LLVM.Core.Phi (addIncoming)
 import LLVM.FFI.Core qualified as Raw
 import LLVM.FFI.Missing qualified as Missing
 import LLVM.Internal.TH (wrapAs, wrapDirectly)
@@ -332,7 +335,21 @@ wrapDirectly 'Missing.buildICmp ""
 
 -- TODO: wrapDirectly 'Raw.buildFCmp "" (RealPredicate)
 
-wrapDirectly 'Raw.buildPhi ""
+{- | Build a PHI node with the given incoming values/blocks.
+
+This is an extension to LLVM's C API: If passed an empty array, this behaves exactly
+like @LLVMBuildPhi@. Otherwise, it uses 'addIncoming' to
+construct the PHI node in one step.
+-}
+buildPhi :: Builder -> Type -> Vector.Vector (Value, BasicBlock) -> Text -> IO Value
+buildPhi builder (MkType typeRef) incomingValues name = do
+    phi <-
+        MkValue <$> withBuilder builder \builderRef ->
+            Text.Foreign.withCString name \nameString -> do
+                Raw.buildPhi builderRef typeRef nameString
+    when (not (Vector.null incomingValues)) do
+        addIncoming phi incomingValues
+    pure phi
 
 wrapAs "buildCall" 'Missing.buildCall2 ""
 
