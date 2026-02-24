@@ -14,7 +14,7 @@ module LLVM.Internal.Wrappers (
   FunctionType (..),
   OpaqueFunctionType,
   FunctionTypeRef,
-  unsafeFunctionTypeAsType,
+  functionTypeAsType,
   unsafeTypeAsFunctionType,
   OpaqueMetaData,
   MetaDataRef,
@@ -80,11 +80,11 @@ type FunctionTypeRef = Ptr OpaqueFunctionType
 
 {- | Cast a FunctionType to the underlying Type.
 
-This is an unsafe operation since LLVM will in general not check if
-types are function types or regular types and may segfault when given the wrong one
+This is a safe operation since function types are subtypes of regular types in LLVM and the C API
+represents function types as regular types anyway
 -}
-unsafeFunctionTypeAsType :: FunctionType -> Type
-unsafeFunctionTypeAsType (MkFunctionType ptr) = MkType (coerce ptr)
+functionTypeAsType :: FunctionType -> Type
+functionTypeAsType (MkFunctionType ptr) = MkType (coerce ptr)
 
 {- | Upcast a type to a function type. The type needs to be a valid function type but this condition is not checked.
 

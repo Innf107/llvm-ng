@@ -1,21 +1,15 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module LLVM.Core (
-    Module,
-    Context,
-    Value,
-    Type,
-    FunctionType,
-    unsafeTypeAsFunctionType,
-    unsafeFunctionTypeAsType,
-    MetaData,
-    FastMathFlags,
-    IntPredicate (..),
-    RealPredicate (..),
-    BasicBlock (..),
+    -- * Basic Setup
     contextCreate,
     moduleCreateWithName,
     addFunction,
+    IntPredicate (..),
+    RealPredicate (..),
+    BasicBlock (..),
+
+    -- * LLVM Types
     functionType,
     intType,
     int1Type,
@@ -23,6 +17,14 @@ module LLVM.Core (
     int16Type,
     int32Type,
     int64Type,
+    int128Type,
+    halfType,
+    bfloatType,
+    floatType,
+    doubleType,
+    x86FP80Type,
+    fp128Type,
+    ppcfp128Type,
     structType,
     arrayType,
     pointerType,
@@ -41,6 +43,8 @@ module LLVM.Core (
     printModuleToString,
     appendBasicBlock,
     getParam,
+
+    -- * Constants
     constInt,
     constIntOfString,
     constReal,
@@ -50,6 +54,25 @@ module LLVM.Core (
     getTargetExtTypeTypeParam,
     getTargetExtTypeNumIntParams,
     getTargetExtTypeIntParam,
+
+    -- * Opaque Types
+
+    {- | Most of the types exposed by this library are opaque wrappers around the types provided by the underlying LLVM C bindings.
+
+    One notable exception to this is 'FunctionType', which exists in LLVM's C++ API but not in the C API.
+    This type is included here for safety reasons (LLVM can segfault when given a non-function 'Type' where a 'FunctionType' is expected).
+
+    In the C++ API, 'FunctionType' is a C++ subtype of 'Type', but here you will have to manually call 'functionTypeAsType'.
+    -}
+    Module,
+    Context,
+    Value,
+    Type,
+    unsafeTypeAsFunctionType,
+    functionTypeAsType,
+    MetaData,
+    FastMathFlags,
+    FunctionType,
 ) where
 
 import Control.Exception (mask_)
@@ -75,7 +98,7 @@ import LLVM.Internal.Wrappers (
     RealPredicate (..),
     Type (..),
     Value (..),
-    unsafeFunctionTypeAsType,
+    functionTypeAsType,
     unsafeTypeAsFunctionType,
     withContext,
     withModule,
@@ -109,7 +132,7 @@ moduleCreateWithName name = do
 -- | Add a function to a module under a specified name.
 addFunction :: Module -> Text -> FunctionType -> IO Value
 addFunction module_ name functionType = do
-    let MkType type_ = unsafeFunctionTypeAsType functionType
+    let MkType type_ = functionTypeAsType functionType
     function <- Text.Foreign.withCString name \nameCStr -> do
         withModule module_ \modulePtr -> do
             Raw.addFunction modulePtr nameCStr type_
@@ -167,7 +190,45 @@ int64Type = unsafePerformIO do
         Raw.int64TypeInContext contextPtr
     pure (MkType ref)
 
-{- TODO: llvm-ffi doesn't have int128TypeInContext yet -}
+-- | Construct a 128 bit integer type
+int128Type :: (?context :: Context) => Type
+int128Type = unsafePerformIO do
+    MkType <$> withContext ?context Missing.int128TypeInContext
+
+-- | Obtain a 16-bit floating point type from a context.
+halfType :: (?context :: Context) => Type
+halfType = unsafePerformIO do
+    MkType <$> withContext ?context Missing.halfTypeInContext
+
+-- | Obtain a 16-bit brain floating point type from a context.
+bfloatType :: (?context :: Context) => Type
+bfloatType = unsafePerformIO do
+    MkType <$> withContext ?context Missing.bfloatTypeInContext
+
+-- | Obtain a 32-bit floating point type from a context.
+floatType :: (?context :: Context) => Type
+floatType = unsafePerformIO do
+    MkType <$> withContext ?context Raw.floatTypeInContext
+
+-- | Obtain a 64-bit floating point type from a context.
+doubleType :: (?context :: Context) => Type
+doubleType = unsafePerformIO do
+    MkType <$> withContext ?context Raw.doubleTypeInContext
+
+-- | Obtain a 80-bit floating point type (X87) from a context.
+x86FP80Type :: (?context :: Context) => Type
+x86FP80Type = unsafePerformIO do
+    MkType <$> withContext ?context Raw.x86FP80TypeInContext
+
+-- | Obtain a 128-bit floating point type (112-bit mantissa) from a context.
+fp128Type :: (?context :: Context) => Type
+fp128Type = unsafePerformIO do
+    MkType <$> withContext ?context Raw.fp128TypeInContext
+
+-- | Obtain a 128-bit floating point type (two 64-bits) from a context.
+ppcfp128Type :: (?context :: Context) => Type
+ppcfp128Type = unsafePerformIO do
+    MkType <$> withContext ?context Raw.ppcFP128TypeInContext
 
 -- | Create a new structure type in a context.
 structType :: (?context :: Context) => Storable.Vector Type -> Bool -> Type

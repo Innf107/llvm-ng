@@ -1,15 +1,15 @@
 {-# LANGUAGE GHC2024 #-}
 {-# LANGUAGE CApiFFI #-}
+{-# OPTIONS_GHC -optc -Wno-discarded-qualifiers #-}
 -- Workaround for https://gitlab.haskell.org/ghc/ghc/-/issues/26852
 {-# OPTIONS_GHC -optc -Wno-incompatible-pointer-types #-}
-{-# OPTIONS_GHC -optc -Wno-discarded-qualifiers #-}
 
 module LLVM.FFI.Missing where
 
 import Foreign.C (CInt (..), CString, CUInt (..))
 import Foreign.Ptr (Ptr)
 import LLVM.FFI.Core qualified as Raw
-import LLVM.Internal.Wrappers (IntPredicate, MetaDataRef, OperandBundleRef, RawFastMathFlags, RawGEPNoWrapFlags, RawIntPredicate, RawRealPredicate, FunctionTypeRef)
+import LLVM.Internal.Wrappers (FunctionTypeRef, IntPredicate, MetaDataRef, OperandBundleRef, RawFastMathFlags, RawGEPNoWrapFlags, RawIntPredicate, RawRealPredicate)
 
 foreign import capi unsafe "llvm-c/Core.h LLVMPrintModuleToFile"
     printModuleToFile ::
@@ -427,7 +427,6 @@ foreign import capi "llvm-c/Core.h LLVMGetTargetExtTypeNumTypeParams"
     getTargetExtTypeNumTypeParams ::
         Raw.TypeRef -> IO CUInt
 
-
 foreign import capi "llvm-c/Core.h LLVMGetTargetExtTypeTypeParam"
     getTargetExtTypeTypeParam ::
         Raw.TypeRef ->
@@ -443,3 +442,12 @@ foreign import capi "llvm-c/Core.h LLVMGetTargetExtTypeIntParam"
         Raw.TypeRef ->
         CUInt ->
         IO CUInt
+
+foreign import capi unsafe "llvm-c/Core.h LLVMInt128TypeInContext"
+    int128TypeInContext :: Raw.ContextRef -> IO Raw.TypeRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMHalfTypeInContext"
+    halfTypeInContext :: Raw.ContextRef -> IO Raw.TypeRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMBFloatTypeInContext"
+    bfloatTypeInContext :: Raw.ContextRef -> IO Raw.TypeRef
