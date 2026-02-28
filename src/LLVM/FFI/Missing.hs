@@ -451,3 +451,20 @@ foreign import capi unsafe "llvm-c/Core.h LLVMHalfTypeInContext"
 
 foreign import capi unsafe "llvm-c/Core.h LLVMBFloatTypeInContext"
     bfloatTypeInContext :: Raw.ContextRef -> IO Raw.TypeRef
+
+
+foreign import capi unsafe "llvm-c/Core.h LLVMIsInBounds"
+    isInBounds :: Raw.ValueRef -> IO Raw.Bool
+
+foreign import capi unsafe "llvm-c/Core.h LLVMSetIsInBounds"
+    setIsInBounds :: Raw.ValueRef -> Raw.Bool -> IO ()
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetGEPSourceElementType"
+    getGEPSourceElementType :: Raw.ValueRef -> IO Raw.TypeRef
+
+
+foreign import capi unsafe "llvm-c/Core.h LLVMContextShouldDiscardValueNames"
+    contextShouldDiscardValueNames :: Raw.ContextRef -> IO Raw.Bool
+
+foreign import capi unsafe "llvm-c/Core.h LLVMContextSetDiscardValueNames"
+    contextSetDiscardValueNames :: Raw.ContextRef -> Raw.Bool -> IO ()

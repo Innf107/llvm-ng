@@ -1,13 +1,14 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module LLVM.Core (
-    -- * Basic Setup
+    -- * Common Operations
     contextCreate,
     moduleCreateWithName,
     addFunction,
-    IntPredicate (..),
-    RealPredicate (..),
-    BasicBlock (..),
+    appendBasicBlock,
+    getParam,
+    setIsInBounds,
+    isInBounds,
 
     -- * LLVM Types
     functionType,
@@ -38,11 +39,6 @@ module LLVM.Core (
     metadataType,
     targetExtType,
     getTargetExtTypeName,
-    dumpModule,
-    printModuleToFile,
-    printModuleToString,
-    appendBasicBlock,
-    getParam,
 
     -- * Constants
     constInt,
@@ -65,6 +61,7 @@ module LLVM.Core (
     In the C++ API, 'FunctionType' is a C++ subtype of 'Type', but here you will have to manually call 'functionTypeAsType'.
     -}
     Module,
+    BasicBlock,
     Context,
     Value,
     Type,
@@ -73,6 +70,16 @@ module LLVM.Core (
     MetaData,
     FastMathFlags,
     FunctionType,
+
+    -- * Debugging
+    dumpModule,
+    printModuleToFile,
+    printModuleToString,
+
+    -- * Other
+    IntPredicate (..),
+    RealPredicate (..),
+    getGEPSourceElementType,
 ) where
 
 import Control.Exception (mask_)
@@ -83,6 +90,7 @@ import Data.Vector.Storable qualified as Storable
 import Foreign (Ptr)
 import Foreign.C (CUInt, withCString)
 import Foreign.Concurrent (newForeignPtr)
+import LLVM.Core.Context
 import LLVM.FFI.Core qualified as Raw
 import LLVM.FFI.Missing qualified as Missing
 import LLVM.Internal.Error (withErrorMessage)
@@ -108,15 +116,6 @@ import LLVM.Internal.Wrappers (
 import System.IO.Unsafe (unsafePerformIO)
 import System.OsPath (OsPath)
 import System.OsPath qualified as OsPath
-
-{- | Create a new context.
-
-The context has an attached finalizer and will automatically be garbage collected.
--}
-contextCreate :: IO Context
-contextCreate = do
-    rawContext <- Raw.contextCreate
-    MkContext <$> newForeignPtr rawContext (Raw.contextDispose rawContext)
 
 {- | Create a new, empty module in a specific context.
 
@@ -363,3 +362,11 @@ wrapDirectlyPure 'Raw.constReal "Obtain a constant value referring to a double f
 wrapDirectlyPure 'Raw.constRealOfString "Obtain a constant value referring to a double floating point value. "
 
 wrapDirectlyPure 'Raw.constIntGetZExtValue "Obtain the sign extended value for an integer constant value. "
+
+wrapDirectly 'Missing.isInBounds "Check whether the given GEP operator is inbounds."
+
+wrapDirectly 'Missing.setIsInBounds "Set the given GEP instruction to be inbounds or not."
+
+wrapDirectly 'Missing.getGEPSourceElementType "Get the source element type of the given GEP operator."
+
+-- TODO: NoWrap flags
