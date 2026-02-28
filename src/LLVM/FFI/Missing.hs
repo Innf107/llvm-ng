@@ -6,10 +6,11 @@
 
 module LLVM.FFI.Missing where
 
-import Foreign.C (CInt (..), CString, CUInt (..))
+import Data.Word (Word64)
+import Foreign.C (CInt (..), CString, CUInt (..), CULLong (..))
 import Foreign.Ptr (Ptr)
 import LLVM.FFI.Core qualified as Raw
-import LLVM.Internal.Wrappers (FunctionTypeRef, IntPredicate, MetaDataRef, OperandBundleRef, RawFastMathFlags, RawGEPNoWrapFlags, RawIntPredicate, RawRealPredicate)
+import LLVM.Internal.Wrappers (DiagnosticInfoRef, FunctionTypeRef, IntPredicate, MetaDataRef, OperandBundleRef, RawFastMathFlags, RawGEPNoWrapFlags, RawIntPredicate, RawRealPredicate)
 
 foreign import capi unsafe "llvm-c/Core.h LLVMPrintModuleToFile"
     printModuleToFile ::
@@ -452,7 +453,6 @@ foreign import capi unsafe "llvm-c/Core.h LLVMHalfTypeInContext"
 foreign import capi unsafe "llvm-c/Core.h LLVMBFloatTypeInContext"
     bfloatTypeInContext :: Raw.ContextRef -> IO Raw.TypeRef
 
-
 foreign import capi unsafe "llvm-c/Core.h LLVMIsInBounds"
     isInBounds :: Raw.ValueRef -> IO Raw.Bool
 
@@ -462,9 +462,29 @@ foreign import capi unsafe "llvm-c/Core.h LLVMSetIsInBounds"
 foreign import capi unsafe "llvm-c/Core.h LLVMGetGEPSourceElementType"
     getGEPSourceElementType :: Raw.ValueRef -> IO Raw.TypeRef
 
-
 foreign import capi unsafe "llvm-c/Core.h LLVMContextShouldDiscardValueNames"
     contextShouldDiscardValueNames :: Raw.ContextRef -> IO Raw.Bool
 
 foreign import capi unsafe "llvm-c/Core.h LLVMContextSetDiscardValueNames"
     contextSetDiscardValueNames :: Raw.ContextRef -> Raw.Bool -> IO ()
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetDiagInfoDescription"
+    getDiagInfoDescription :: DiagnosticInfoRef -> IO CString
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetSyncScopeID"
+    getSyncScopeId :: Raw.ContextRef -> CString -> CUInt -> IO CUInt
+
+foreign import capi unsafe "llvm-c/Core.h LLVMCreateTypeAttribute"
+    createTypeAttribute :: Raw.ContextRef -> CUInt -> Raw.TypeRef -> IO Raw.AttributeRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetTypeAttributeValue"
+    getTypeAttributeValue :: Raw.AttributeRef -> IO Raw.TypeRef
+
+-- foreign import capi unsafe "llvm-c/Core.h LLVMCreateConstantRangeAttribute"
+--    createConstantRangeAttribute :: Raw.ContextRef -> CUInt -> CUInt -> Ptr CULLong -> Ptr CULLong -> IO Raw.AttributeRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMIsTypeAttribute"
+    isTypeAttribute :: Raw.AttributeRef -> IO Raw.Bool
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetTypeByName2"
+    getTypeByName2 :: Raw.ContextRef -> CString -> IO Raw.TypeRef

@@ -7,7 +7,9 @@ import Language.Haskell.TH (Name, Q)
 import Language.Haskell.TH qualified as TH
 
 import Control.Monad.IO.Class (MonadIO (liftIO))
+import Data.Foldable (foldlM)
 import Data.List qualified as List
+import Data.Maybe (catMaybes, mapMaybe)
 import Data.Text (Text)
 import Data.Text.Foreign qualified as Text.Foreign
 import Data.Vector.Storable qualified as Storable
@@ -35,15 +37,26 @@ wrapBase isPure wrappedFunctionName rawFunctionName docString =
     TH.reify rawFunctionName >>= \case
         TH.VarI _name type_ _definition -> do
             let (rawArgumentTypes, rawResultType) = splitType type_
-            parameters <- for (groupArrays rawArgumentTypes) \type_ -> do
+
+            let (parameterTypes, hasContext) = parseTypes rawArgumentTypes
+
+            parameters <- for parameterTypes \type_ -> do
                 name <- TH.newName "x"
                 pure (name, type_)
 
-            (wrappedArgumentTypes, finalNames, transformers) <-
+            let parameterPatterns = flip mapMaybe parameters \case
+                    (_, Context) -> Nothing
+                    (name, _) -> Just (TH.varP name)
+
+            (wrappedArgumentTypeMaybes, finalArguments, transformers) <-
                 List.unzip3 <$> for parameters \(name, argumentType) ->
                     case argumentType of
                         Plain type_ -> wrapParameter type_ name
                         Array elementType -> wrapArray elementType name
+                        Context -> do
+                            name <- TH.newName "context"
+                            pure (Nothing, [TH.varE name], (\body -> [|Wrappers.withContext ?context \ $(TH.varP name) -> $body|]))
+            let wrappedArgumentTypes = catMaybes wrappedArgumentTypeMaybes
 
             (wrappedPureResultType, resultTransformer) <- wrapResult rawResultType
 
@@ -55,12 +68,13 @@ wrapBase isPure wrappedFunctionName rawFunctionName docString =
 
             let unconstrainedFunctionType = pure $ foldr (\arg result -> TH.ArrowT `TH.AppT` arg `TH.AppT` result) wrappedResultType wrappedArgumentTypes
 
-            let functionType =
-                    if isPure
-                        then unconstrainedFunctionType
-                        else [t|(MonadIO $(TH.varT monad)) => $(unconstrainedFunctionType)|]
+            let functionType = case (isPure, hasContext) of
+                    (True, False) -> unconstrainedFunctionType
+                    (False, False) -> [t|(MonadIO $(TH.varT monad)) => $(unconstrainedFunctionType)|]
+                    (True, True) -> [t|(?context :: Wrappers.Context) => $(unconstrainedFunctionType)|]
+                    (False, True) -> [t|(?context :: Wrappers.Context, MonadIO $(TH.varT monad)) => $(unconstrainedFunctionType)|]
 
-            let application = foldl' TH.AppE (TH.VarE rawFunctionName) (map TH.VarE (concat finalNames))
+            application <- foldl' TH.appE (TH.varE rawFunctionName) (concat finalArguments)
 
             let actualBody :: TH.ExpQ =
                     [|
@@ -75,29 +89,40 @@ wrapBase isPure wrappedFunctionName rawFunctionName docString =
             TH.withDecsDoc docString $
                 sequenceA
                     [ TH.withDecDoc docString $ TH.sigD (TH.mkName wrappedFunctionName) functionType
-                    , TH.withDecDoc docString $ TH.funD (TH.mkName wrappedFunctionName) [TH.clause (fmap (TH.varP . fst) parameters) (TH.normalB functionBody) []]
+                    , TH.withDecDoc docString $ TH.funD (TH.mkName wrappedFunctionName) [TH.clause parameterPatterns (TH.normalB functionBody) []]
                     ]
         _ -> fail $ "wrapDirectly called on a non-variable name: " <> show rawFunctionName
 
 data ArgumentType
     = Plain TH.Type
     | Array TH.Type
+    | Context
 
-groupArrays :: [TH.Type] -> [ArgumentType]
-groupArrays types = case types of
+parseTypes :: [TH.Type] -> ([ArgumentType], Bool)
+parseTypes types = case types of
     (TH.AppT (TH.ConT ptrName) argument : TH.ConT uintName : rest)
-        | ptrName == ''Ptr && TH.nameBase uintName == "CUInt" ->
-            Array argument : groupArrays rest
-    (type_ : rest) -> Plain type_ : groupArrays rest
-    [] -> []
+        | ptrName == ''Ptr && TH.nameBase uintName == "CUInt" -> do
+            let (parsed, hasContext) = parseTypes rest
+            (Array argument : parsed, hasContext)
+    (TH.ConT contextName : rest)
+        | contextName == ''Raw.ContextRef -> do
+            let (parsed, _hasContext) = parseTypes rest
+            (Context : parsed, True)
+    (type_ : rest) -> do
+        let (parsed, hasContext) = parseTypes rest
+        (Plain type_ : parsed, hasContext)
+    [] -> ([], False)
 
-wrapParameter :: TH.Type -> Name -> Q (TH.Type, [Name], TH.ExpQ -> TH.ExpQ)
+wrapParameter :: TH.Type -> Name -> Q (Maybe TH.Type, [TH.ExpQ], TH.ExpQ -> TH.ExpQ)
 wrapParameter rawType varName = case rawType of
     TH.ConT typeName
+        | typeName == ''Raw.ContextRef -> undefined
         | typeName == ''Raw.ValueRef -> wrapNewtype ''Wrappers.Value 'Wrappers.MkValue
         | typeName == ''Raw.BuilderRef -> wrapWith ''Wrappers.Builder 'Wrappers.withBuilder
         | typeName == ''Raw.BasicBlockRef -> wrapNewtype ''Wrappers.BasicBlock 'Wrappers.MkBlock
         | typeName == ''Raw.TypeRef -> wrapNewtype ''Wrappers.Type 'Wrappers.MkType
+        | typeName == ''Raw.AttributeKind -> wrapIdentity typeName
+        | typeName == ''Raw.AttributeRef -> wrapNewtype ''Wrappers.Attribute 'Wrappers.MkAttribute
         | typeName == ''Wrappers.FunctionTypeRef -> wrapNewtype ''Wrappers.FunctionType 'Wrappers.MkFunctionType
         | typeName == ''Wrappers.RawIntPredicate -> wrapFunction ''Wrappers.IntPredicate 'Wrappers.unwrapIntPredicate
         | typeName == ''Wrappers.RawRealPredicate -> wrapFunction ''Wrappers.RealPredicate 'Wrappers.unwrapRealPredicate
@@ -109,7 +134,8 @@ wrapParameter rawType varName = case rawType of
         | TH.nameBase typeName == "CUInt" -> wrapFunction ''Int 'fromIntegral
         | TH.nameBase typeName == "CULLong" -> wrapFunction ''Word64 'fromIntegral
         | TH.nameBase typeName == "CDouble" -> wrapFunction ''Double 'doubleToCDouble
-        | typeName == ''Word8 -> wrapFunction ''Word8 'id
+        | typeName == ''Word8 -> wrapIdentity typeName
+        | typeName == ''Word64 -> wrapIdentity typeName
         -- llvm-ffi does not export the FunctionRef alias either...
         | TH.nameBase typeName == "FunctionRef" -> wrapNewtype ''Wrappers.Value 'Wrappers.MkValue
         | typeName == ''Raw.Bool -> wrapFunction ''Bool 'Raw.consBool
@@ -117,23 +143,25 @@ wrapParameter rawType varName = case rawType of
         | otherwise -> fail $ "Unable to wrap unsupported type constructor " <> show typeName <> " in argument position"
     _ -> fail $ "Unable to wrap non-constructor parameter type " <> show rawType <> " in argument position"
   where
-    wrapNewtype :: Name -> Name -> Q (TH.Type, [Name], TH.ExpQ -> TH.ExpQ)
+    wrapNewtype :: Name -> Name -> Q (Maybe TH.Type, [TH.ExpQ], TH.ExpQ -> TH.ExpQ)
     wrapNewtype wrappedTypeName constructorName = do
         nextVarName <- TH.newName "x"
         let bodyTransformer body = [|let $(TH.conP constructorName [TH.varP nextVarName]) = $(TH.varE varName) in $body|]
-        pure (TH.ConT wrappedTypeName, [nextVarName], bodyTransformer)
-    wrapWith :: Name -> Name -> Q (TH.Type, [Name], TH.ExpQ -> TH.ExpQ)
+        pure (Just (TH.ConT wrappedTypeName), [TH.varE nextVarName], bodyTransformer)
+    wrapWith :: Name -> Name -> Q (Maybe TH.Type, [TH.ExpQ], TH.ExpQ -> TH.ExpQ)
     wrapWith wrappedTypeName withFunctionName = do
         nextVarName <- TH.newName "x"
         let bodyTransformer body = [|$(TH.varE withFunctionName) $(TH.varE varName) \ $(TH.varP nextVarName) -> $body|]
-        pure (TH.ConT wrappedTypeName, [nextVarName], bodyTransformer)
-    wrapFunction :: Name -> Name -> Q (TH.Type, [Name], TH.ExpQ -> TH.ExpQ)
+        pure (Just (TH.ConT wrappedTypeName), [TH.varE nextVarName], bodyTransformer)
+    wrapFunction :: Name -> Name -> Q (Maybe TH.Type, [TH.ExpQ], TH.ExpQ -> TH.ExpQ)
     wrapFunction wrappedTypeName wrappingFunctionName = do
         nextVarName <- TH.newName "x"
         let bodyTransformer body = [|let $(TH.varP nextVarName) = $(TH.varE wrappingFunctionName) $(TH.varE varName) in $body|]
-        pure (TH.ConT wrappedTypeName, [nextVarName], bodyTransformer)
+        pure (Just (TH.ConT wrappedTypeName), [TH.varE nextVarName], bodyTransformer)
+    wrapIdentity :: Name -> Q (Maybe TH.Type, [TH.ExpQ], TH.ExpQ -> TH.ExpQ)
+    wrapIdentity typeName = pure (Just (TH.ConT typeName), [TH.varE varName], id)
 
-wrapArray :: TH.Type -> Name -> Q (TH.Type, [Name], TH.ExpQ -> TH.ExpQ)
+wrapArray :: TH.Type -> Name -> Q (Maybe TH.Type, [TH.ExpQ], TH.ExpQ -> TH.ExpQ)
 wrapArray elementType varName = case elementType of
     TH.ConT elementName
         | elementName == ''Raw.ValueRef -> withWrapper ''Wrappers.Value 'Wrappers.withValueArray
@@ -146,7 +174,7 @@ wrapArray elementType varName = case elementType of
         lengthName <- TH.newName "length"
         let bodyTransformer body = [|$(TH.varE function) $(TH.varE varName) \ $(TH.varP pointerName) $(TH.varP lengthName) -> $body|]
         vectorType <- [t|Storable.Vector $(TH.conT wrappedElementType)|]
-        pure (vectorType, [pointerName, lengthName], bodyTransformer)
+        pure (Just vectorType, [TH.varE pointerName, TH.varE lengthName], bodyTransformer)
 
 wrapResult :: TH.Type -> Q (TH.Type, TH.ExpQ -> TH.ExpQ)
 wrapResult rawType = case rawType of
@@ -164,8 +192,11 @@ wrapResult rawType = case rawType of
         | typeName == ''Wrappers.MetaDataRef -> wrapNewtype ''Wrappers.MetaData 'Wrappers.MkMetaData
         | typeName == ''Wrappers.RawFastMathFlags -> wrapNewtype ''Wrappers.FastMathFlags 'Wrappers.MkFastMathFlags
         | typeName == ''Wrappers.RawGEPNoWrapFlags -> wrapNewtype ''Wrappers.GEPNoWrapFlags 'Wrappers.MkGEPNoWrapFlags
+        | typeName == ''Raw.AttributeRef -> wrapNewtype ''Wrappers.Attribute 'Wrappers.MkAttribute
+        | typeName == ''Raw.AttributeKind -> wrapIdentity typeName
         | typeName == ''CUInt -> wrapFunction ''Int 'fromIntegral
         | typeName == ''CInt -> wrapFunction ''Int 'fromIntegral
+        | typeName == ''Word64 -> wrapIdentity typeName
         | TH.nameBase typeName == "CUInt" -> wrapFunction ''Int 'fromIntegral
         | TH.nameBase typeName == "CULLong" -> wrapFunction ''Word64 'fromIntegral
         | typeName == ''Raw.Bool -> wrapFunction ''Bool 'Raw.deconsBool
@@ -178,6 +209,7 @@ wrapResult rawType = case rawType of
     wrapFunction wrappedTypeName functionName = do
         let transformer body = [|pure ($(TH.varE functionName) $body)|]
         pure (TH.ConT wrappedTypeName, transformer)
+    wrapIdentity typeName = pure (TH.ConT typeName, \body -> [|pure $body|])
 
 splitType :: TH.Type -> ([TH.Type], TH.Type)
 splitType type_ = case type_ of

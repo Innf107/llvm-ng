@@ -25,6 +25,10 @@ module LLVM.Internal.Wrappers (
   OperandBundleRef,
   OperandBundle (..),
   withOperandBundleArray,
+  OpaqueDiagnosticInfo,
+  DiagnosticInfoRef,
+  DiagnosticInfo (..),
+  Attribute (..),
   unsafeVectorFromCArray,
   GEPNoWrapFlags (..),
   RawGEPNoWrapFlags,
@@ -34,12 +38,16 @@ module LLVM.Internal.Wrappers (
   RawRealPredicate,
   RealPredicate (..),
   unwrapRealPredicate,
+  wrapMessage,
 ) where
 
 import Data.Coerce (coerce)
+import Data.Text (Text)
+import Data.Text.Foreign qualified as Text.Foreign
 import Data.Vector.Storable qualified as Storable
 import Foreign (ForeignPtr, Storable (sizeOf), plusPtr, withForeignPtr)
 import Foreign.C (CInt, CUInt)
+import Foreign.C.String (CString)
 import Foreign.Ptr (Ptr)
 import Foreign.Storable (peek)
 import LLVM.FFI.Core qualified as Raw
@@ -120,6 +128,13 @@ type OperandBundleRef = Ptr OpaqueOperandBundle
 
 newtype OperandBundle = MkOperandBundle OperandBundleRef
   deriving newtype (Storable)
+
+data OpaqueDiagnosticInfo
+type DiagnosticInfoRef = Ptr OpaqueDiagnosticInfo
+
+newtype DiagnosticInfo = MkDiagnosticInfo DiagnosticInfoRef
+
+newtype Attribute = MkAttribute Raw.AttributeRef
 
 withOperandBundleArray :: Storable.Vector OperandBundle -> (Ptr OperandBundleRef -> CUInt -> IO a) -> IO a
 withOperandBundleArray vector cont = do
@@ -223,3 +238,9 @@ unwrapRealPredicate = \case
   RealULE -> 13
   RealUNE -> 14
   RealPredicateTrue -> 15
+
+wrapMessage :: CString -> IO Text
+wrapMessage cstring = do
+  text <- Text.Foreign.peekCString cstring
+  Raw.disposeMessage cstring
+  pure text
