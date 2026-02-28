@@ -83,6 +83,7 @@ module LLVM.Core (
 ) where
 
 import Control.Exception (mask_)
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Foreign qualified as Text.Foreign
@@ -121,16 +122,16 @@ import System.OsPath qualified as OsPath
 
 The mdoule has an attached finalizer and will automatically be garbage collected.
 -}
-moduleCreateWithName :: (?context :: Context) => Text -> IO Module
-moduleCreateWithName name = do
+moduleCreateWithName :: (?context :: Context, MonadIO io) => Text -> io Module
+moduleCreateWithName name = liftIO do
     rawModule <- Text.Foreign.withCString name \nameCString -> do
         withContext ?context \contextPtr -> do
             Raw.moduleCreateWithNameInContext nameCString contextPtr
     MkModule <$> newForeignPtr rawModule (Raw.disposeModule rawModule)
 
 -- | Add a function to a module under a specified name.
-addFunction :: Module -> Text -> FunctionType -> IO Value
-addFunction module_ name functionType = do
+addFunction :: MonadIO io => Module -> Text -> FunctionType -> io Value
+addFunction module_ name functionType = liftIO do
     let MkType type_ = functionTypeAsType functionType
     function <- Text.Foreign.withCString name \nameCStr -> do
         withModule module_ \modulePtr -> do
@@ -319,14 +320,14 @@ wrapDirectlyPure 'Missing.getTargetExtTypeNumIntParams "Obtain the number of int
 wrapDirectlyPure 'Missing.getTargetExtTypeIntParam "Get the int parameter at the given index for the target extension type."
 
 -- | Dump a representation of a module to stderr.
-dumpModule :: Module -> IO ()
-dumpModule module_ =
+dumpModule :: (MonadIO io) => Module -> io ()
+dumpModule module_ = liftIO $
     withModule module_ \moduleRef ->
         Missing.dumpModule moduleRef
 
 -- | Print a representation of a module to a file.
-printModuleToFile :: Module -> OsPath -> IO ()
-printModuleToFile module_ filePath = do
+printModuleToFile :: (MonadIO io) => Module -> OsPath -> io ()
+printModuleToFile module_ filePath = liftIO do
     -- TODO: use the underlying ShortByteString directly instead of going via string
     filePathString <- OsPath.decodeFS filePath
     withCString filePathString \filePathCString -> do
@@ -343,8 +344,8 @@ printModuleToString module_ = unsafePerformIO do
         pure result
 
 -- | Append a basic block to the end of a function.
-appendBasicBlock :: (?context :: Context) => Value -> Text -> IO BasicBlock
-appendBasicBlock (MkValue function) name =
+appendBasicBlock :: (?context :: Context, MonadIO io) => Value -> Text -> io BasicBlock
+appendBasicBlock (MkValue function) name = liftIO $
     withContext ?context \contextRef ->
         Text.Foreign.withCString name \cname ->
             MkBlock <$> Raw.appendBasicBlockInContext contextRef function cname

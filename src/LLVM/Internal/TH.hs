@@ -6,6 +6,7 @@ import Data.Traversable (for)
 import Language.Haskell.TH (Name, Q)
 import Language.Haskell.TH qualified as TH
 
+import Control.Monad.IO.Class (MonadIO (liftIO))
 import Data.List qualified as List
 import Data.Text (Text)
 import Data.Text.Foreign qualified as Text.Foreign
@@ -45,10 +46,19 @@ wrapBase isPure wrappedFunctionName rawFunctionName docString =
                         Array elementType -> wrapArray elementType name
 
             (wrappedPureResultType, resultTransformer) <- wrapResult rawResultType
+
+            monad <- TH.newName "io"
             wrappedResultType <-
                 if isPure
                     then pure wrappedPureResultType
-                    else [t|IO $(pure wrappedPureResultType)|]
+                    else [t|$(TH.varT monad) $(pure wrappedPureResultType)|]
+
+            let unconstrainedFunctionType = pure $ foldr (\arg result -> TH.ArrowT `TH.AppT` arg `TH.AppT` result) wrappedResultType wrappedArgumentTypes
+
+            let functionType =
+                    if isPure
+                        then unconstrainedFunctionType
+                        else [t|(MonadIO $(TH.varT monad)) => $(unconstrainedFunctionType)|]
 
             let application = foldl' TH.AppE (TH.VarE rawFunctionName) (map TH.VarE (concat finalNames))
 
@@ -61,10 +71,10 @@ wrapBase isPure wrappedFunctionName rawFunctionName docString =
             let functionBody =
                     if isPure
                         then [|unsafePerformIO $actualBody|]
-                        else actualBody
+                        else [|liftIO $actualBody|]
             TH.withDecsDoc docString $
                 sequenceA
-                    [ TH.withDecDoc docString $ TH.sigD (TH.mkName wrappedFunctionName) (pure $ foldr (\arg result -> TH.ArrowT `TH.AppT` arg `TH.AppT` result) wrappedResultType wrappedArgumentTypes)
+                    [ TH.withDecDoc docString $ TH.sigD (TH.mkName wrappedFunctionName) functionType
                     , TH.withDecDoc docString $ TH.funD (TH.mkName wrappedFunctionName) [TH.clause (fmap (TH.varP . fst) parameters) (TH.normalB functionBody) []]
                     ]
         _ -> fail $ "wrapDirectly called on a non-variable name: " <> show rawFunctionName

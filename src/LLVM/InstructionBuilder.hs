@@ -6,6 +6,7 @@ module LLVM.InstructionBuilder (
 ) where
 
 import Control.Monad (when)
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Text (Text)
 import Data.Text.Foreign qualified as Text.Foreign
 import Data.Vector.Storable qualified as Storable
@@ -32,23 +33,23 @@ import LLVM.Internal.Wrappers (
     withValueArray,
  )
 
-createBuilder :: (?context :: Context) => IO Builder
-createBuilder = withContext ?context \context -> do
+createBuilder :: (?context :: Context, MonadIO io) => io Builder
+createBuilder = liftIO $ withContext ?context \context -> do
     rawBuilder <- Raw.createBuilderInContext context
     foreignPtr <- newForeignPtr rawBuilder (Missing.disposeBuilder rawBuilder)
     pure (MkBuilder foreignPtr)
 
 -- | Set the builder position before Instr but after any attached debug records, or if Instr is null set the position to the end of Block.
-positionBuilder :: Builder -> BasicBlock -> Maybe Value -> IO ()
-positionBuilder builder (MkBlock blockRef) maybeValue = withBuilder builder \builderRef -> case maybeValue of
+positionBuilder :: (MonadIO io) => Builder -> BasicBlock -> Maybe Value -> io ()
+positionBuilder builder (MkBlock blockRef) maybeValue = liftIO $ withBuilder builder \builderRef -> case maybeValue of
     Just (MkValue valueRef) -> Raw.positionBuilder builderRef blockRef valueRef
     Nothing -> Raw.positionBuilder builderRef blockRef nullPtr
 
 wrapAs "positionBuilderBefore" 'Raw.positionBefore "Set the builder position before Instr but after any attached debug records. "
 
 -- | Set the builder position before Instr and any attached debug records, or if Instr is null set the position to the end of Block.
-positionBuilderBeforeDbgRecords :: Builder -> BasicBlock -> Maybe Value -> IO ()
-positionBuilderBeforeDbgRecords builder (MkBlock block) maybeValue = withBuilder builder \builderRef -> case maybeValue of
+positionBuilderBeforeDbgRecords :: (MonadIO io) => Builder -> BasicBlock -> Maybe Value -> io ()
+positionBuilderBeforeDbgRecords builder (MkBlock block) maybeValue = liftIO $ withBuilder builder \builderRef -> case maybeValue of
     Nothing -> Missing.positionBuilderBeforeDbgRecords builderRef block nullPtr
     Just (MkValue valueRef) -> Missing.positionBuilderBeforeDbgRecords builderRef block valueRef
 
@@ -70,8 +71,8 @@ To clear the location metadata of the given instruction, pass Nothing to loc.
 
 This uses LLVMSetCurrentDebugLocation2 under the hood.
 -}
-setCurrentDebugLocation :: Builder -> Maybe MetaData -> IO ()
-setCurrentDebugLocation builder loc = withBuilder builder \builderRef -> case loc of
+setCurrentDebugLocation :: (MonadIO io) => Builder -> Maybe MetaData -> io ()
+setCurrentDebugLocation builder loc = liftIO $ withBuilder builder \builderRef -> case loc of
     Nothing -> Missing.setCurrentDebugLocation2 builderRef nullPtr
     Just (MkMetaData ref) -> Missing.setCurrentDebugLocation2 builderRef ref
 
@@ -138,8 +139,8 @@ wrapDirectly 'Missing.addHandler ""
 wrapDirectly 'Missing.getNumHandlers ""
 
 -- | Obtain the basic blocks acting as handlers for a catchswitch instruction.
-getHandlers :: Value -> IO (Storable.Vector BasicBlock)
-getHandlers value@(MkValue valueRef) = do
+getHandlers :: (MonadIO io) => Value -> io (Storable.Vector BasicBlock)
+getHandlers value@(MkValue valueRef) = liftIO do
     count <- getNumHandlers value
     vectorOfPointers <- allocaBytes @Raw.BasicBlockRef (count * sizeOf (undefined :: Raw.BasicBlockRef)) \storage -> do
         Missing.getHandlers valueRef storage
@@ -341,8 +342,8 @@ This is an extension to LLVM's C API: If passed an empty array, this behaves exa
 like @LLVMBuildPhi@. Otherwise, it uses 'addIncoming' to
 construct the PHI node in one step.
 -}
-buildPhi :: Builder -> Type -> Vector.Vector (Value, BasicBlock) -> Text -> IO Value
-buildPhi builder (MkType typeRef) incomingValues name = do
+buildPhi :: (MonadIO io) => Builder -> Type -> Vector.Vector (Value, BasicBlock) -> Text -> io Value
+buildPhi builder (MkType typeRef) incomingValues name = liftIO do
     phi <-
         MkValue <$> withBuilder builder \builderRef ->
             Text.Foreign.withCString name \nameString -> do
