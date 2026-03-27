@@ -7,10 +7,10 @@
 module LLVM.FFI.Missing where
 
 import Data.Word (Word64)
-import Foreign.C (CInt (..), CString, CUInt (..), CULLong (..))
+import Foreign.C (CInt (..), CSize (..), CString, CUInt (..), CULLong (..))
 import Foreign.Ptr (Ptr)
 import LLVM.FFI.Core qualified as Raw
-import LLVM.Internal.Wrappers (DiagnosticInfoRef, FunctionTypeRef, IntPredicate, MetaDataRef, OperandBundleRef, RawFastMathFlags, RawGEPNoWrapFlags, RawIntPredicate, RawRealPredicate)
+import LLVM.Internal.Wrappers (DiagnosticInfoRef, FunctionTypeRef, GlobalRef, IntPredicate, MetaDataRef, OperandBundleRef, RawFastMathFlags, RawGEPNoWrapFlags, RawIntPredicate, RawRealPredicate)
 
 foreign import capi unsafe "llvm-c/Core.h LLVMPrintModuleToFile"
     printModuleToFile ::
@@ -488,3 +488,51 @@ foreign import capi unsafe "llvm-c/Core.h LLVMIsTypeAttribute"
 
 foreign import capi unsafe "llvm-c/Core.h LLVMGetTypeByName2"
     getTypeByName2 :: Raw.ContextRef -> CString -> IO Raw.TypeRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMAddGlobal"
+    addGlobal :: Raw.ModuleRef -> Raw.TypeRef -> CString -> IO GlobalRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMAddGlobalInAddressSpace"
+    addGlobalInAddressSpace :: Raw.ModuleRef -> Raw.TypeRef -> CString -> CUInt -> IO GlobalRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetNamedGlobalWithLength"
+    getNamedGlobalWithLength :: Raw.ModuleRef -> CString -> CSize -> IO GlobalRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetFirstGlobal"
+    getFirstGlobal :: Raw.ModuleRef -> IO GlobalRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetLastGlobal"
+    getLastGlobal :: Raw.ModuleRef -> IO GlobalRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetNextGlobal"
+    getNextGlobal :: GlobalRef -> IO GlobalRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetPreviousGlobal"
+    getPreviousGlobal :: GlobalRef -> IO GlobalRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMDeleteGlobal"
+    deleteGlobal :: GlobalRef -> IO ()
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetInitializer"
+    getInitializer :: GlobalRef -> IO Raw.ValueRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMSetInitializer"
+    setInitializer :: GlobalRef -> Raw.ValueRef -> IO ()
+
+foreign import capi unsafe "llvm-c/Core.h LLVMIsThreadLocal"
+    isThreadLocal :: GlobalRef -> IO Raw.Bool
+
+foreign import capi unsafe "llvm-c/Core.h LLVMSetThreadLocal"
+    setThreadLocal :: GlobalRef -> Raw.Bool -> IO ()
+
+foreign import capi unsafe "llvm-c/Core.h LLVMIsExternallyInitialized"
+    isExternallyInitialized :: GlobalRef -> IO Raw.Bool
+
+foreign import capi unsafe "llvm-c/Core.h LLVMSetExternallyInitialized"
+    setExternallyInitialized :: GlobalRef -> Raw.Bool -> IO ()
+
+foreign import capi unsafe "llvm-c/Core.h LLVMIsGlobalConstant"
+    isGlobalConstant :: GlobalRef -> IO Raw.Bool
+
+foreign import capi unsafe "llvm-c/Core.h LLVMSetGlobalConstant"
+    setGlobalConstant :: GlobalRef -> Raw.Bool -> IO ()

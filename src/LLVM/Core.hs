@@ -51,6 +51,26 @@ module LLVM.Core (
     getTargetExtTypeNumIntParams,
     getTargetExtTypeIntParam,
 
+    -- * Globals
+    addGlobal,
+    addGlobalInAddressSpace,
+    getNamedGlobal,
+    Wrappers.globalAsValue,
+    Wrappers.unsafeValueAsGlobal,
+    getFirstGlobal,
+    getLastGlobal,
+    getNextGlobal,
+    getPreviousGlobal,
+    deleteGlobal,
+    getInitializer,
+    setInitializer,
+    isThreadLocal,
+    setThreadLocal,
+    isGlobalConstant,
+    setGlobalConstant,
+    isExternallyInitialized,
+    setExternallyInitialized,
+
     -- * Opaque Types
 
     {- | Most of the types exposed by this library are opaque wrappers around the types provided by the underlying LLVM C bindings.
@@ -64,6 +84,7 @@ module LLVM.Core (
     BasicBlock,
     Context,
     Value,
+    Global,
     Type,
     unsafeTypeAsFunctionType,
     functionTypeAsType,
@@ -101,6 +122,7 @@ import LLVM.Internal.Wrappers (
     Context (..),
     FastMathFlags,
     FunctionType (MkFunctionType),
+    Global,
     IntPredicate (..),
     MetaData,
     Module (..),
@@ -114,6 +136,7 @@ import LLVM.Internal.Wrappers (
     withTypeArray,
     withUnsignedArray,
  )
+import LLVM.Internal.Wrappers qualified as Wrappers
 import System.IO.Unsafe (unsafePerformIO)
 import System.OsPath (OsPath)
 import System.OsPath qualified as OsPath
@@ -130,7 +153,7 @@ moduleCreateWithName name = liftIO do
     MkModule <$> newForeignPtr rawModule (Raw.disposeModule rawModule)
 
 -- | Add a function to a module under a specified name.
-addFunction :: MonadIO io => Module -> Text -> FunctionType -> io Value
+addFunction :: (MonadIO io) => Module -> Text -> FunctionType -> io Value
 addFunction module_ name functionType = liftIO do
     let MkType type_ = functionTypeAsType functionType
     function <- Text.Foreign.withCString name \nameCStr -> do
@@ -318,6 +341,45 @@ wrapDirectlyPure 'Missing.getTargetExtTypeTypeParam "Get the type parameter at t
 wrapDirectlyPure 'Missing.getTargetExtTypeNumIntParams "Obtain the number of int parameters for this target extension type."
 
 wrapDirectlyPure 'Missing.getTargetExtTypeIntParam "Get the int parameter at the given index for the target extension type."
+
+wrapDirectly 'Missing.addGlobal ""
+
+wrapDirectly 'Missing.addGlobalInAddressSpace ""
+
+getNamedGlobal :: (MonadIO io) => Module -> Text -> io Wrappers.Global
+getNamedGlobal module_ name = liftIO do
+    withModule module_ \moduleRef -> do
+        Text.Foreign.withCStringLen name \(cstring, len) ->
+            Wrappers.MkGlobal <$> Missing.getNamedGlobalWithLength moduleRef cstring (fromIntegral len)
+
+wrapDirectly 'Missing.getFirstGlobal ""
+
+wrapDirectly 'Missing.getLastGlobal ""
+
+wrapDirectly 'Missing.getNextGlobal ""
+
+wrapDirectly 'Missing.getPreviousGlobal ""
+
+wrapDirectly 'Missing.deleteGlobal ""
+
+wrapDirectly 'Missing.getInitializer ""
+
+wrapDirectly 'Missing.setInitializer ""
+
+wrapDirectly 'Missing.isThreadLocal ""
+
+wrapDirectly 'Missing.setThreadLocal ""
+
+wrapDirectly 'Missing.isGlobalConstant ""
+
+wrapDirectly 'Missing.setGlobalConstant ""
+
+-- TODO: wrapDirectly 'Missing.getThreadLocalMode ""
+-- TODO: wrapDirectly 'Missing.setThreadLocalMode ""
+
+wrapDirectly 'Missing.isExternallyInitialized ""
+
+wrapDirectly 'Missing.setExternallyInitialized ""
 
 -- | Dump a representation of a module to stderr.
 dumpModule :: (MonadIO io) => Module -> io ()

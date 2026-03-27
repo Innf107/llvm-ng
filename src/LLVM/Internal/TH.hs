@@ -17,6 +17,7 @@ import Data.Word (Word64, Word8)
 import Foreign (Ptr)
 import Foreign.C (CDouble, CInt, CUInt)
 import Foreign.C.String (CString)
+import Foreign.C.Types (CSize)
 import LLVM.FFI.Core qualified as Raw
 import LLVM.Internal.Wrappers qualified as Wrappers
 
@@ -119,11 +120,13 @@ wrapParameter rawType varName = case rawType of
         | typeName == ''Raw.ContextRef -> undefined
         | typeName == ''Raw.ValueRef -> wrapNewtype ''Wrappers.Value 'Wrappers.MkValue
         | typeName == ''Raw.BuilderRef -> wrapWith ''Wrappers.Builder 'Wrappers.withBuilder
+        | typeName == ''Raw.ModuleRef -> wrapWith ''Wrappers.Module 'Wrappers.withModule
         | typeName == ''Raw.BasicBlockRef -> wrapNewtype ''Wrappers.BasicBlock 'Wrappers.MkBlock
         | typeName == ''Raw.TypeRef -> wrapNewtype ''Wrappers.Type 'Wrappers.MkType
         | typeName == ''Raw.AttributeKind -> wrapIdentity typeName
         | typeName == ''Raw.AttributeRef -> wrapNewtype ''Wrappers.Attribute 'Wrappers.MkAttribute
         | typeName == ''Wrappers.FunctionTypeRef -> wrapNewtype ''Wrappers.FunctionType 'Wrappers.MkFunctionType
+        | typeName == ''Wrappers.GlobalRef -> wrapNewtype ''Wrappers.Global 'Wrappers.MkGlobal
         | typeName == ''Wrappers.RawIntPredicate -> wrapFunction ''Wrappers.IntPredicate 'Wrappers.unwrapIntPredicate
         | typeName == ''Wrappers.RawRealPredicate -> wrapFunction ''Wrappers.RealPredicate 'Wrappers.unwrapRealPredicate
         | typeName == ''Wrappers.MetaDataRef -> wrapNewtype ''Wrappers.MetaData 'Wrappers.MkMetaData
@@ -136,6 +139,7 @@ wrapParameter rawType varName = case rawType of
         | TH.nameBase typeName == "CDouble" -> wrapFunction ''Double 'doubleToCDouble
         | typeName == ''Word8 -> wrapIdentity typeName
         | typeName == ''Word64 -> wrapIdentity typeName
+        | typeName == ''CSize -> wrapFunction ''Int 'fromIntegral
         -- llvm-ffi does not export the FunctionRef alias either...
         | TH.nameBase typeName == "FunctionRef" -> wrapNewtype ''Wrappers.Value 'Wrappers.MkValue
         | typeName == ''Raw.Bool -> wrapFunction ''Bool 'Raw.consBool
@@ -188,6 +192,7 @@ wrapResult rawType = case rawType of
         | typeName == ''Raw.ValueRef -> wrapNewtype ''Wrappers.Value 'Wrappers.MkValue
         | typeName == ''Raw.TypeRef -> wrapNewtype ''Wrappers.Type 'Wrappers.MkType
         | typeName == ''Wrappers.FunctionTypeRef -> wrapNewtype ''Wrappers.FunctionType 'Wrappers.MkFunctionType
+        | typeName == ''Wrappers.GlobalRef -> wrapNewtype ''Wrappers.Global 'Wrappers.MkGlobal
         | typeName == ''Raw.BasicBlockRef -> wrapNewtype ''Wrappers.BasicBlock 'Wrappers.MkBlock
         | typeName == ''Wrappers.MetaDataRef -> wrapNewtype ''Wrappers.MetaData 'Wrappers.MkMetaData
         | typeName == ''Wrappers.RawFastMathFlags -> wrapNewtype ''Wrappers.FastMathFlags 'Wrappers.MkFastMathFlags

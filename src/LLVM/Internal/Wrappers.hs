@@ -16,6 +16,11 @@ module LLVM.Internal.Wrappers (
   FunctionTypeRef,
   functionTypeAsType,
   unsafeTypeAsFunctionType,
+  Global (..),
+  OpaqueGlobal,
+  GlobalRef,
+  globalAsValue,
+  unsafeValueAsGlobal,
   OpaqueMetaData,
   MetaDataRef,
   MetaData (..),
@@ -102,6 +107,27 @@ types are function types or regular types and may segfault when given the wrong 
 -}
 unsafeTypeAsFunctionType :: Type -> FunctionType
 unsafeTypeAsFunctionType (MkType ptr) = MkFunctionType (coerce ptr)
+
+newtype Global = MkGlobal GlobalRef
+
+data OpaqueGlobal
+type GlobalRef = Ptr Global
+
+{- | Cast a global to a value.
+
+This is a safe operation since the underlying C API represents references to globals as references to values anyway.
+-}
+globalAsValue :: Global -> Value
+globalAsValue = coerce
+
+{- | Upcast a global variable to a value. For this to be safe, the passed value needs to refer
+to a global variable but this condition is not checked.
+
+This is an unsafe operation since LLVM will in general not check if
+values passed to functions that expect globals are actually globals
+-}
+unsafeValueAsGlobal :: Value -> Global
+unsafeValueAsGlobal = coerce
 
 withTypeArray :: Storable.Vector Type -> (Ptr Raw.TypeRef -> CUInt -> IO a) -> IO a
 withTypeArray vector cont = do
