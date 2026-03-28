@@ -109,7 +109,7 @@ import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Foreign qualified as Text.Foreign
 import Data.Vector.Storable qualified as Storable
-import Foreign (Ptr)
+import Foreign (Ptr, nullPtr)
 import Foreign.C (CUInt, withCString)
 import Foreign.Concurrent (newForeignPtr)
 import LLVM.Core.Context
@@ -346,11 +346,16 @@ wrapDirectly 'Missing.addGlobal ""
 
 wrapDirectly 'Missing.addGlobalInAddressSpace ""
 
-getNamedGlobal :: (MonadIO io) => Module -> Text -> io Wrappers.Global
+getNamedGlobal :: (MonadIO io) => Module -> Text -> io (Maybe Wrappers.Global)
 getNamedGlobal module_ name = liftIO do
     withModule module_ \moduleRef -> do
-        Text.Foreign.withCStringLen name \(cstring, len) ->
-            Wrappers.MkGlobal <$> Missing.getNamedGlobalWithLength moduleRef cstring (fromIntegral len)
+        Text.Foreign.withCStringLen name \(cstring, len) -> do
+            value <- Missing.getNamedGlobalWithLength moduleRef cstring (fromIntegral len)
+            if value == nullPtr
+                then
+                    pure Nothing
+                else
+                    pure $ Just (Wrappers.MkGlobal value)
 
 wrapDirectly 'Missing.getFirstGlobal ""
 
