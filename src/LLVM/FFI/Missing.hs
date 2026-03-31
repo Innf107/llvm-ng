@@ -1,5 +1,6 @@
 {-# LANGUAGE GHC2024 #-}
 {-# LANGUAGE CApiFFI #-}
+{-# OPTIONS_GHC -Wno-missing-export-lists #-}
 {-# OPTIONS_GHC -optc -Wno-discarded-qualifiers #-}
 -- Workaround for https://gitlab.haskell.org/ghc/ghc/-/issues/26852
 {-# OPTIONS_GHC -optc -Wno-incompatible-pointer-types #-}
@@ -7,10 +8,28 @@
 module LLVM.FFI.Missing where
 
 import Data.Word (Word64)
-import Foreign.C (CInt (..), CSize (..), CString, CUInt (..), CULLong (..))
+import Foreign.C (CInt (..), CSize (..), CString, CUInt (..))
 import Foreign.Ptr (Ptr)
 import LLVM.FFI.Core qualified as Raw
-import LLVM.Internal.Wrappers (DiagnosticInfoRef, FunctionTypeRef, GlobalRef, IntPredicate, MetaDataRef, OperandBundleRef, RawFastMathFlags, RawGEPNoWrapFlags, RawIntPredicate, RawRealPredicate)
+import LLVM.Internal.Wrappers (
+    CStringLenAsByteString,
+    DiagnosticInfoRef,
+    FunctionTypeRef,
+    GlobalRef,
+    IntPredicate,
+    MetaDataRef,
+    OperandBundleRef,
+    RawDLLStorageClass,
+    RawFastMathFlags,
+    RawGEPNoWrapFlags,
+    RawIntPredicate,
+    RawLinkage,
+    RawRealPredicate,
+    RawUnnamedAddr,
+    RawVisibility,
+    UnownedCString,
+    ValueMetadataEntriesRef,
+ )
 
 foreign import capi unsafe "llvm-c/Core.h LLVMPrintModuleToFile"
     printModuleToFile ::
@@ -536,3 +555,114 @@ foreign import capi unsafe "llvm-c/Core.h LLVMIsGlobalConstant"
 
 foreign import capi unsafe "llvm-c/Core.h LLVMSetGlobalConstant"
     setGlobalConstant :: GlobalRef -> Raw.Bool -> IO ()
+
+foreign import capi unsafe "llvm-c/Core.h LLVMConstStringInContext2"
+    constStringInContext2 :: Raw.ContextRef -> CString -> CSize -> Raw.Bool -> IO Raw.ValueRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMIsConstantString"
+    isConstantString :: Raw.ValueRef -> IO Raw.Bool
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetAsString"
+    getAsString :: Raw.ValueRef -> Ptr CSize -> IO CString
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetRawDataValues"
+    getRawDataValues :: Raw.ValueRef -> Ptr CSize -> IO CString
+
+foreign import capi unsafe "llvm-c/Core.h LLVMConstArray2"
+    constArray2 :: Raw.TypeRef -> Ptr Raw.ValueRef -> Word64 -> IO Raw.ValueRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMConstDataArray"
+    constDataArray :: Raw.TypeRef -> CStringLenAsByteString -> CSize -> IO Raw.ValueRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetAggregateElement"
+    getAggregateElement :: Raw.ValueRef -> CUInt -> IO Raw.ValueRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMConstantPtrAuth"
+    constantPtrAuth :: Raw.ValueRef -> Raw.ValueRef -> Raw.ValueRef -> Raw.ValueRef -> IO Raw.ValueRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMConstNSWNeg"
+    constNSWNeg :: Raw.ValueRef -> IO Raw.ValueRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMConstGEPWithNoWrapFlags"
+    constGEPWithNoWrapFlags :: Raw.TypeRef -> Raw.ValueRef -> Ptr Raw.ValueRef -> CUInt -> RawGEPNoWrapFlags -> IO Raw.ValueRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMConstAddrSpaceCast"
+    constAddrSpaceCast :: Raw.ValueRef -> Raw.TypeRef -> IO Raw.ValueRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetBlockAddressFunction"
+    getBlockAddressFunction :: Raw.ValueRef -> IO Raw.ValueRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetBlockAddressBasicBlock"
+    getBlockAddressBasicBlock :: Raw.ValueRef -> IO Raw.ValueRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMIsDeclaration"
+    isDeclaration :: GlobalRef -> IO Raw.Bool
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetLinkage"
+    getLinkage :: GlobalRef -> IO RawLinkage
+
+foreign import capi unsafe "llvm-c/Core.h LLVMSetLinkage"
+    setLinkage :: GlobalRef -> RawLinkage -> IO ()
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetSection"
+    getSection :: GlobalRef -> IO UnownedCString
+
+foreign import capi unsafe "llvm-c/Core.h LLVMSetSection"
+    setSection :: GlobalRef -> CString -> IO ()
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetVisibility"
+    getVisibility :: GlobalRef -> IO RawVisibility
+
+foreign import capi unsafe "llvm-c/Core.h LLVMSetVisibility"
+    setVisibility :: GlobalRef -> RawVisibility -> IO ()
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetDLLStorageClass"
+    getDLLStorageClass :: GlobalRef -> IO RawDLLStorageClass
+
+foreign import capi unsafe "llvm-c/Core.h LLVMSetDLLStorageClass"
+    setDLLStorageClass :: GlobalRef -> RawDLLStorageClass -> IO ()
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetUnnamedAddress"
+    getUnnamedAddress :: GlobalRef -> IO RawUnnamedAddr
+
+foreign import capi unsafe "llvm-c/Core.h LLVMSetUnnamedAddress"
+    setUnnamedAddress :: GlobalRef -> RawUnnamedAddr -> IO ()
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGlobalGetValueType"
+    globalGetValueType :: GlobalRef -> IO Raw.TypeRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetAlignment"
+    getAlignment :: GlobalRef -> IO CUInt
+
+foreign import capi unsafe "llvm-c/Core.h LLVMSetAlignment"
+    setAlignment :: GlobalRef -> CUInt -> IO ()
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGlobalSetMetadata"
+    globalSetMetadata :: GlobalRef -> CUInt -> MetaDataRef -> IO ()
+
+-- TODO: somehow this function doesn't actually seem to exist for me?
+-- It isn't mentioned in any of the recent release notes however (22, 21, 20, 19, 18, 17, 16)
+-- foreign import capi unsafe "llvm-c/Core.h LLVMGlobalAddMetadata"
+--    globalAddMetadata :: GlobalRef -> CUInt -> MetaDataRef -> IO ()
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGlobalEraseMetadata"
+    globalEraseMetadata :: GlobalRef -> CUInt -> IO ()
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGlobalClearMetadata"
+    globalClearMetadata :: GlobalRef -> IO ()
+
+-- TODO: same problem as globalAddMetadata
+-- foreign import capi unsafe "llvm-c/Core.h LLVMGlobalAddDebugInfo"
+--     globalAddDebugInfo :: GlobalRef -> MetaDataRef -> IO ()
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGlobalCopyAllMetadata"
+    globalCopyAllMetadata :: GlobalRef -> Ptr CSize -> IO ValueMetadataEntriesRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMDisposeValueMetadataEntries"
+    disposeValueMetadataEntries :: ValueMetadataEntriesRef -> IO ()
+
+foreign import capi unsafe "llvm-c/Core.h LLVMValueMetadataEntriesGetKind"
+    valueMetadataEntriesGetKind :: ValueMetadataEntriesRef -> CUInt -> IO CUInt
+
+foreign import capi unsafe "llvm-c/Core.h LLVMValueMetadataEntriesGetMetadata"
+    valueMetadataEntriesGetMetadata :: ValueMetadataEntriesRef -> CUInt -> IO MetaDataRef

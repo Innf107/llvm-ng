@@ -1,49 +1,66 @@
 module LLVM.Internal.Wrappers (
-  Context (..),
-  withContext,
-  Module (..),
-  withModule,
-  Builder (..),
-  withBuilder,
-  BasicBlock (..),
-  Value (..),
-  withValueArray,
-  Type (..),
-  withTypeArray,
-  withUnsignedArray,
-  FunctionType (..),
-  OpaqueFunctionType,
-  FunctionTypeRef,
-  functionTypeAsType,
-  unsafeTypeAsFunctionType,
-  Global (..),
-  OpaqueGlobal,
-  GlobalRef,
-  globalAsValue,
-  unsafeValueAsGlobal,
-  OpaqueMetaData,
-  MetaDataRef,
-  MetaData (..),
-  RawFastMathFlags,
-  FastMathFlags (..),
-  OpaqueOperandBundle,
-  OperandBundleRef,
-  OperandBundle (..),
-  withOperandBundleArray,
-  OpaqueDiagnosticInfo,
-  DiagnosticInfoRef,
-  DiagnosticInfo (..),
-  Attribute (..),
-  unsafeVectorFromCArray,
-  GEPNoWrapFlags (..),
-  RawGEPNoWrapFlags,
-  RawIntPredicate,
-  IntPredicate (..),
-  unwrapIntPredicate,
-  RawRealPredicate,
-  RealPredicate (..),
-  unwrapRealPredicate,
-  wrapMessage,
+    Context (..),
+    withContext,
+    Module (..),
+    withModule,
+    Builder (..),
+    withBuilder,
+    BasicBlock (..),
+    Value (..),
+    withValueArray,
+    Type (..),
+    withTypeArray,
+    withUnsignedArray,
+    FunctionType (..),
+    OpaqueFunctionType,
+    FunctionTypeRef,
+    functionTypeAsType,
+    unsafeTypeAsFunctionType,
+    Global (..),
+    OpaqueGlobal,
+    GlobalRef,
+    globalAsValue,
+    unsafeValueAsGlobal,
+    OpaqueMetaData,
+    MetaDataRef,
+    MetaData (..),
+    RawFastMathFlags,
+    FastMathFlags (..),
+    OpaqueOperandBundle,
+    OperandBundleRef,
+    OperandBundle (..),
+    withOperandBundleArray,
+    OpaqueDiagnosticInfo,
+    DiagnosticInfoRef,
+    DiagnosticInfo (..),
+    Attribute (..),
+    unsafeVectorFromCArray,
+    GEPNoWrapFlags (..),
+    RawGEPNoWrapFlags,
+    RawIntPredicate,
+    IntPredicate (..),
+    unwrapIntPredicate,
+    RawRealPredicate,
+    RealPredicate (..),
+    unwrapRealPredicate,
+    wrapMessage,
+    CStringLenAsByteString,
+    RawLinkage,
+    wrapLinkage,
+    unwrapLinkage,
+    RawVisibility,
+    wrapVisibility,
+    unwrapVisibility,
+    RawDLLStorageClass,
+    DLLStorageClass (..),
+    wrapDLLStorageClass,
+    unwrapDLLStorageClass,
+    RawUnnamedAddr,
+    UnnamedAddr (..),
+    wrapUnnamedAddr,
+    unwrapUnnamedAddr,
+    ValueMetadataEntriesRef,
+    UnownedCString,
 ) where
 
 import Data.Coerce (coerce)
@@ -51,7 +68,7 @@ import Data.Text (Text)
 import Data.Text.Foreign qualified as Text.Foreign
 import Data.Vector.Storable qualified as Storable
 import Foreign (ForeignPtr, Storable (sizeOf), plusPtr, withForeignPtr)
-import Foreign.C (CInt, CUInt)
+import Foreign.C (CInt, CSize, CUInt)
 import Foreign.C.String (CString)
 import Foreign.Ptr (Ptr)
 import Foreign.Storable (peek)
@@ -73,19 +90,19 @@ withBuilder :: Builder -> (Raw.BuilderRef -> IO a) -> IO a
 withBuilder (MkBuilder foreignPtr) cont = withForeignPtr foreignPtr \rawPtr -> cont rawPtr
 
 newtype BasicBlock = MkBlock (Raw.BasicBlockRef)
-  deriving newtype (Storable)
+    deriving newtype (Storable)
 
 newtype Value = MkValue (Raw.ValueRef)
-  deriving newtype (Storable)
+    deriving newtype (Storable)
 
 withValueArray :: Storable.Vector Value -> (Ptr Raw.ValueRef -> CUInt -> IO a) -> IO a
 withValueArray vector cont = do
-  -- This is safe since `Value` newtype derives its `Storable` instance from the underlying TypeRef
-  let vectorOfPointers = Storable.unsafeCoerceVector @Value @Raw.ValueRef vector
-  Storable.unsafeWith vectorOfPointers \ptr -> cont ptr (fromIntegral (Storable.length vector))
+    -- This is safe since `Value` newtype derives its `Storable` instance from the underlying TypeRef
+    let vectorOfPointers = Storable.unsafeCoerceVector @Value @Raw.ValueRef vector
+    Storable.unsafeWith vectorOfPointers \ptr -> cont ptr (fromIntegral (Storable.length vector))
 
 newtype Type = MkType (Raw.TypeRef)
-  deriving newtype (Storable)
+    deriving newtype (Storable)
 
 newtype FunctionType = MkFunctionType (FunctionTypeRef)
 
@@ -131,14 +148,14 @@ unsafeValueAsGlobal = coerce
 
 withTypeArray :: Storable.Vector Type -> (Ptr Raw.TypeRef -> CUInt -> IO a) -> IO a
 withTypeArray vector cont = do
-  -- This is safe since `Type` newtype derives its `Storable` instance from the underlying TypeRef
-  let vectorOfPointers = Storable.unsafeCoerceVector @Type @Raw.TypeRef vector
-  Storable.unsafeWith vectorOfPointers \ptr -> cont ptr (fromIntegral (Storable.length vector))
+    -- This is safe since `Type` newtype derives its `Storable` instance from the underlying TypeRef
+    let vectorOfPointers = Storable.unsafeCoerceVector @Type @Raw.TypeRef vector
+    Storable.unsafeWith vectorOfPointers \ptr -> cont ptr (fromIntegral (Storable.length vector))
 
 withUnsignedArray :: Storable.Vector Int -> (Ptr CUInt -> CUInt -> IO a) -> IO a
 withUnsignedArray vector cont = do
-  let vectorOfCUInts = Storable.map (fromIntegral) vector
-  Storable.unsafeWith vectorOfCUInts \ptr -> cont ptr (fromIntegral (Storable.length vector))
+    let vectorOfCUInts = Storable.map (fromIntegral) vector
+    Storable.unsafeWith vectorOfCUInts \ptr -> cont ptr (fromIntegral (Storable.length vector))
 
 data OpaqueMetaData
 type MetaDataRef = Ptr OpaqueMetaData
@@ -153,7 +170,7 @@ data OpaqueOperandBundle
 type OperandBundleRef = Ptr OpaqueOperandBundle
 
 newtype OperandBundle = MkOperandBundle OperandBundleRef
-  deriving newtype (Storable)
+    deriving newtype (Storable)
 
 data OpaqueDiagnosticInfo
 type DiagnosticInfoRef = Ptr OpaqueDiagnosticInfo
@@ -164,109 +181,217 @@ newtype Attribute = MkAttribute Raw.AttributeRef
 
 withOperandBundleArray :: Storable.Vector OperandBundle -> (Ptr OperandBundleRef -> CUInt -> IO a) -> IO a
 withOperandBundleArray vector cont = do
-  -- This is safe since `OperandBundle` newtype derives its `Storable` instance from the underlying OperandBundleRef
-  let vectorOfPointers = Storable.unsafeCoerceVector @OperandBundle @OperandBundleRef vector
-  Storable.unsafeWith vectorOfPointers \ptr -> cont ptr (fromIntegral (Storable.length vector))
+    -- This is safe since `OperandBundle` newtype derives its `Storable` instance from the underlying OperandBundleRef
+    let vectorOfPointers = Storable.unsafeCoerceVector @OperandBundle @OperandBundleRef vector
+    Storable.unsafeWith vectorOfPointers \ptr -> cont ptr (fromIntegral (Storable.length vector))
 
 unsafeVectorFromCArray :: forall a. (Storable a) => Ptr a -> Int -> IO (Storable.Vector a)
 unsafeVectorFromCArray ptr size = do
-  Storable.generateM size (\i -> peek (ptr `plusPtr` (i * sizeOf (undefined :: a))))
+    Storable.generateM size (\i -> peek (ptr `plusPtr` (i * sizeOf (undefined :: a))))
 
 type RawGEPNoWrapFlags = CUInt
 newtype GEPNoWrapFlags = MkGEPNoWrapFlags RawGEPNoWrapFlags
 
 type RawIntPredicate = CInt
 data IntPredicate
-  = -- | equal
-    IntEQ
-  | -- | not equal
-    IntNE
-  | -- | unsigned greater than
-    IntUGT
-  | -- | unsigned greater or equal
-    IntUGE
-  | -- | unsigned less than
-    IntULT
-  | -- | unsigned less or equal
-    IntULE
-  | -- | signed greater than
-    IntSGT
-  | -- | signed greater or equal
-    IntSGE
-  | -- | signed less than
-    IntSLT
-  | -- | signed less or equal
-    IntSLE
+    = -- | equal
+      IntEQ
+    | -- | not equal
+      IntNE
+    | -- | unsigned greater than
+      IntUGT
+    | -- | unsigned greater or equal
+      IntUGE
+    | -- | unsigned less than
+      IntULT
+    | -- | unsigned less or equal
+      IntULE
+    | -- | signed greater than
+      IntSGT
+    | -- | signed greater or equal
+      IntSGE
+    | -- | signed less than
+      IntSLT
+    | -- | signed less or equal
+      IntSLE
 
 unwrapIntPredicate :: IntPredicate -> RawIntPredicate
 unwrapIntPredicate = \case
-  IntEQ -> 32
-  IntNE -> 33
-  IntUGT -> 34
-  IntUGE -> 35
-  IntULT -> 36
-  IntULE -> 37
-  IntSGT -> 38
-  IntSGE -> 39
-  IntSLT -> 40
-  IntSLE -> 41
+    IntEQ -> 32
+    IntNE -> 33
+    IntUGT -> 34
+    IntUGE -> 35
+    IntULT -> 36
+    IntULE -> 37
+    IntSGT -> 38
+    IntSGE -> 39
+    IntSLT -> 40
+    IntSLE -> 41
 
 type RawRealPredicate = CInt
 data RealPredicate
-  = -- | Always false (always folded)
-    RealPredicateFalse
-  | -- | True if ordered and equal
-    RealOEQ
-  | -- | True if ordered and greater than
-    RealOGT
-  | -- | True if ordered and greater than or equal
-    RealOGE
-  | -- | True if ordered and less than
-    RealOLT
-  | -- | True if ordered and less than or equal
-    RealOLE
-  | -- | True if ordered and operands are unequal
-    RealONE
-  | -- | True if ordered (no nans)
-    RealORD
-  | -- | True if unordered: isnan(X) | isnan(Y)
-    RealUNO
-  | -- | True if unordered or equal
-    RealUEQ
-  | -- | True if unordered or greater than
-    RealUGT
-  | -- | True if unordered, greater than, or equal
-    RealUGE
-  | -- | True if unordered or less than
-    RealULT
-  | -- | True if unordered, less than, or equal
-    RealULE
-  | -- | True if unordered or not equal
-    RealUNE
-  | -- | Always true (always folded)
-    RealPredicateTrue
+    = -- | Always false (always folded)
+      RealPredicateFalse
+    | -- | True if ordered and equal
+      RealOEQ
+    | -- | True if ordered and greater than
+      RealOGT
+    | -- | True if ordered and greater than or equal
+      RealOGE
+    | -- | True if ordered and less than
+      RealOLT
+    | -- | True if ordered and less than or equal
+      RealOLE
+    | -- | True if ordered and operands are unequal
+      RealONE
+    | -- | True if ordered (no nans)
+      RealORD
+    | -- | True if unordered: isnan(X) | isnan(Y)
+      RealUNO
+    | -- | True if unordered or equal
+      RealUEQ
+    | -- | True if unordered or greater than
+      RealUGT
+    | -- | True if unordered, greater than, or equal
+      RealUGE
+    | -- | True if unordered or less than
+      RealULT
+    | -- | True if unordered, less than, or equal
+      RealULE
+    | -- | True if unordered or not equal
+      RealUNE
+    | -- | Always true (always folded)
+      RealPredicateTrue
 
 unwrapRealPredicate :: RealPredicate -> RawRealPredicate
 unwrapRealPredicate = \case
-  RealPredicateFalse -> 0
-  RealOEQ -> 1
-  RealOGT -> 2
-  RealOGE -> 3
-  RealOLT -> 4
-  RealOLE -> 5
-  RealONE -> 6
-  RealORD -> 7
-  RealUNO -> 8
-  RealUEQ -> 9
-  RealUGT -> 10
-  RealUGE -> 11
-  RealULT -> 12
-  RealULE -> 13
-  RealUNE -> 14
-  RealPredicateTrue -> 15
+    RealPredicateFalse -> 0
+    RealOEQ -> 1
+    RealOGT -> 2
+    RealOGE -> 3
+    RealOLT -> 4
+    RealOLE -> 5
+    RealONE -> 6
+    RealORD -> 7
+    RealUNO -> 8
+    RealUEQ -> 9
+    RealUGT -> 10
+    RealUGE -> 11
+    RealULT -> 12
+    RealULE -> 13
+    RealUNE -> 14
+    RealPredicateTrue -> 15
 
 wrapMessage :: CString -> IO Text
 wrapMessage cstring = do
-  text <- Text.Foreign.peekCString cstring
-  Raw.disposeMessage cstring
-  pure text
+    text <- Text.Foreign.peekCString cstring
+    Raw.disposeMessage cstring
+    pure text
+
+-- | Type alias around CString that instructs the TH machinery to wrap it in a 'ByteString' instead of a 'Text' and to assume that it is followed by a length parameter.
+type CStringLenAsByteString = CString
+
+-- | Type alias around CString that instructs the TH machinery to copy it without trying to free the underlying pointer
+type UnownedCString = CString
+
+type RawLinkage = CUInt
+
+wrapLinkage :: RawLinkage -> Raw.Linkage
+wrapLinkage = \case
+    0 -> Raw.ExternalLinkage
+    1 -> Raw.AvailableExternallyLinkage
+    2 -> Raw.LinkOnceAnyLinkage
+    3 -> Raw.LinkOnceODRLinkage
+    4 -> Raw.LinkOnceODRAutoHideLinkage
+    5 -> Raw.WeakAnyLinkage
+    6 -> Raw.WeakODRLinkage
+    7 -> Raw.AppendingLinkage
+    8 -> Raw.InternalLinkage
+    9 -> Raw.PrivateLinkage
+    10 -> Raw.DLLImportLinkage
+    11 -> Raw.DLLExportLinkage
+    12 -> Raw.ExternalWeakLinkage
+    13 -> Raw.GhostLinkage
+    14 -> Raw.CommonLinkage
+    15 -> Raw.LinkerPrivateLinkage
+    16 -> Raw.LinkerPrivateWeakLinkage
+    value -> error $ "wrapLinkage: invalid linkage value: " <> show value
+
+unwrapLinkage :: Raw.Linkage -> RawLinkage
+unwrapLinkage = \case
+    Raw.ExternalLinkage -> 0
+    Raw.AvailableExternallyLinkage -> 1
+    Raw.LinkOnceAnyLinkage -> 2
+    Raw.LinkOnceODRLinkage -> 3
+    Raw.LinkOnceODRAutoHideLinkage -> 4
+    Raw.WeakAnyLinkage -> 5
+    Raw.WeakODRLinkage -> 6
+    Raw.AppendingLinkage -> 7
+    Raw.InternalLinkage -> 8
+    Raw.PrivateLinkage -> 9
+    Raw.DLLImportLinkage -> 10
+    Raw.DLLExportLinkage -> 11
+    Raw.ExternalWeakLinkage -> 12
+    Raw.GhostLinkage -> 13
+    Raw.CommonLinkage -> 14
+    Raw.LinkerPrivateLinkage -> 15
+    Raw.LinkerPrivateWeakLinkage -> 16
+
+type RawVisibility = CUInt
+
+wrapVisibility :: RawVisibility -> Raw.Visibility
+wrapVisibility = \case
+    0 -> Raw.DefaultVisibility
+    1 -> Raw.HiddenVisibility
+    2 -> Raw.ProtectedVisibility
+    value -> error $ "wrapVisibility: invalid visibility value: " <> show value
+
+unwrapVisibility :: Raw.Visibility -> RawVisibility
+unwrapVisibility = \case
+    Raw.DefaultVisibility -> 0
+    Raw.HiddenVisibility -> 1
+    Raw.ProtectedVisibility -> 2
+
+type RawDLLStorageClass = CUInt
+
+data DLLStorageClass
+    = DefaultStorageClass
+    | ImportStorageClass
+    | ExportStorageClass
+
+wrapDLLStorageClass :: RawDLLStorageClass -> DLLStorageClass
+wrapDLLStorageClass = \case
+    0 -> DefaultStorageClass
+    1 -> ImportStorageClass
+    2 -> ExportStorageClass
+    value -> error $ "wrapDLLStorageClass: invalid DLLStorageClass value: " <> show value
+
+unwrapDLLStorageClass :: DLLStorageClass -> RawDLLStorageClass
+unwrapDLLStorageClass = \case
+    DefaultStorageClass -> 0
+    ImportStorageClass -> 1
+    ExportStorageClass -> 2
+
+type RawUnnamedAddr = CUInt
+
+data UnnamedAddr
+    = NoUnnamedAddr
+    | LocalUnnamedAddr
+    | GlobalUnnamedAddr
+
+wrapUnnamedAddr :: RawUnnamedAddr -> UnnamedAddr
+wrapUnnamedAddr = \case
+    0 -> NoUnnamedAddr
+    1 -> LocalUnnamedAddr
+    2 -> GlobalUnnamedAddr
+    value -> error $ "wrapUnnamedAddr: invalid unnamed address value: " <> show value
+
+unwrapUnnamedAddr :: UnnamedAddr -> RawUnnamedAddr
+unwrapUnnamedAddr = \case
+    NoUnnamedAddr -> 0
+    LocalUnnamedAddr -> 1
+    GlobalUnnamedAddr -> 2
+
+data OpaqueValueMetadataEntries
+
+type ValueMetadataEntriesRef = Ptr OpaqueValueMetadataEntries

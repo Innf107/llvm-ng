@@ -19,6 +19,7 @@ dependencies:
 - vector
 - filepath
 - template-haskell
+- bytestring
 
 ghc-options:
 - -Wall

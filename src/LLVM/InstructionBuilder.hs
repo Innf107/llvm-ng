@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# OPTIONS_GHC -Wno-identities #-}
 
 module LLVM.InstructionBuilder (
     module LLVM.InstructionBuilder,

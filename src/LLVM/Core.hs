@@ -1,4 +1,8 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE ViewPatterns #-}
+-- Our TH occasionally emits unnecessary 'fromIntegral' calls for simplicity.
+-- These will be optimized away but we don't need to be warned about them.
+{-# OPTIONS_GHC -Wno-identities #-}
 
 module LLVM.Core (
     -- * Common Operations
@@ -50,6 +54,17 @@ module LLVM.Core (
     getTargetExtTypeTypeParam,
     getTargetExtTypeNumIntParams,
     getTargetExtTypeIntParam,
+    constString,
+    NullTermination (..),
+    getAsString,
+    getRawDataValues,
+    constStructInContext,
+    constArray,
+    constDataArray,
+    constNamedStruct,
+    getAggregateElement,
+    constVector,
+    constantPtrAuth,
 
     -- * Globals
     addGlobal,
@@ -71,6 +86,58 @@ module LLVM.Core (
     isExternallyInitialized,
     setExternallyInitialized,
 
+    -- ** Operations on Globals
+    isDeclaration,
+    getLinkage,
+    setLinkage,
+    getSection,
+    setSection,
+    getVisibility,
+    setVisibility,
+    getDLLStorageClass,
+    setDLLStorageClass,
+    getUnnamedAddress,
+    setUnnamedAddress,
+    globalGetValueType,
+    getAlignment,
+    setAlignment,
+    globalSetMetadata,
+    -- globalAddMetadata,
+    globalEraseMetadata,
+    globalClearMetadata,
+    -- globalAddDebugInfo,
+    copyAllMetadata,
+
+    -- * Constant Expressions
+    alignOf,
+    sizeOf,
+    constNeg,
+    constNSWNeg,
+    constNot,
+    constAdd,
+    constNSWAdd,
+    constNUWAdd,
+    constSub,
+    constNSWSub,
+    constNUWSub,
+    constXor,
+    constGEP,
+    constInBoundsGEP,
+    constGEPWithNoWrapFlags,
+    constTrunc,
+    constPtrToInt,
+    constIntToPtr,
+    constBitCast,
+    constAddrSpaceCast,
+    constTruncOrBitCast,
+    constPointerCast,
+    constExtractElement,
+    constInsertElement,
+    constShuffleVector,
+    blockAddress,
+    getBlockAddressFunction,
+    getBlockAddressBasicBlock,
+
     -- * Opaque Types
 
     {- | Most of the types exposed by this library are opaque wrappers around the types provided by the underlying LLVM C bindings.
@@ -91,6 +158,8 @@ module LLVM.Core (
     MetaData,
     FastMathFlags,
     FunctionType,
+    Raw.Linkage,
+    Raw.Visibility,
 
     -- * Debugging
     dumpModule,
@@ -105,24 +174,27 @@ module LLVM.Core (
 
 import Control.Exception (mask_)
 import Control.Monad.IO.Class (MonadIO, liftIO)
+import Data.ByteString (ByteString)
+import Data.ByteString qualified as ByteString
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Foreign qualified as Text.Foreign
 import Data.Vector.Storable qualified as Storable
-import Foreign (Ptr, nullPtr)
+import Data.Vector.Strict qualified as Strict
+import Foreign (Ptr, Storable (peek), alloca, nullPtr, poke)
 import Foreign.C (CUInt, withCString)
 import Foreign.Concurrent (newForeignPtr)
 import LLVM.Core.Context
 import LLVM.FFI.Core qualified as Raw
 import LLVM.FFI.Missing qualified as Missing
 import LLVM.Internal.Error (withErrorMessage)
-import LLVM.Internal.TH (wrapDirectly, wrapDirectlyPure)
+import LLVM.Internal.TH (wrapAs, wrapDirectly, wrapDirectlyPure)
 import LLVM.Internal.Wrappers (
     BasicBlock (..),
     Context (..),
     FastMathFlags,
     FunctionType (MkFunctionType),
-    Global,
+    Global (MkGlobal),
     IntPredicate (..),
     MetaData,
     Module (..),
@@ -431,6 +503,57 @@ wrapDirectlyPure 'Raw.constRealOfString "Obtain a constant value referring to a 
 
 wrapDirectlyPure 'Raw.constIntGetZExtValue "Obtain the sign extended value for an integer constant value. "
 
+data NullTermination
+    = NullTerminate
+    | Don'tNullTerminate
+
+{- | Create a ConstantDataSequential and initialize it with a string.
+
+This wraps LLVMConstStringInContext2.
+-}
+constString :: (?context :: Context, MonadIO io) => Text -> NullTermination -> io Value
+constString text nullTermination = liftIO $ withContext ?context \contextRef ->
+    Text.Foreign.withCStringLen text \(cstring, length) -> do
+        let don'tNullTerminate = case nullTermination of
+                NullTerminate -> Raw.false
+                Don'tNullTerminate -> Raw.true
+        MkValue <$> Missing.constStringInContext2 contextRef cstring (fromIntegral length) don'tNullTerminate
+
+wrapDirectlyPure 'Missing.isConstantString "Returns true if the specified constant is an array of i8. "
+
+-- | Get the given constant data sequential as a 'Text'.
+getAsString :: (MonadIO io) => Value -> io Text
+getAsString (MkValue valueRef) = liftIO do
+    alloca \lengthPtr -> do
+        cstring <- Missing.getAsString valueRef lengthPtr
+        length <- peek lengthPtr
+        Text.Foreign.peekCStringLen (cstring, fromIntegral length)
+
+{- | Get the raw, underlying bytes of the given constant data sequential.
+
+This is the same as 'getAsString' except it works for all constant data sequentials, not just i8 arrays.
+-}
+getRawDataValues :: (MonadIO io) => Value -> io ByteString
+getRawDataValues (MkValue valueRef) = liftIO do
+    alloca \lengthPtr -> do
+        cstring <- Missing.getRawDataValues valueRef lengthPtr
+        length <- peek lengthPtr
+        ByteString.packCStringLen (cstring, fromIntegral length)
+
+wrapDirectly 'Raw.constStructInContext "Create an anonymous ConstantStruct with the specified values."
+
+wrapAs "constArray" 'Missing.constArray2 "Create a ConstantArray from values.\n\nThis is a wrapper around LLVMConstArray2"
+
+wrapDirectly 'Missing.constDataArray "Create a ConstantDataArray from raw values.\n\nElementTy must be one of i8, i16, i32, i64, half, bfloat, float, or double. Data points to a contiguous buffer of raw values in the host endianness. The element count is inferred from the element type and the data size in bytes."
+
+wrapDirectly 'Raw.constNamedStruct "Create a non-anonymous ConstantStruct from values. "
+
+wrapDirectly 'Missing.getAggregateElement "Get element of a constant aggregate (struct, array or vector) at the specified index. "
+
+wrapDirectly 'Raw.constVector "Create a ConstantVector from values."
+
+wrapDirectly 'Missing.constantPtrAuth "Create a ConstantPtrAuth constant with the given values."
+
 wrapDirectly 'Missing.isInBounds "Check whether the given GEP operator is inbounds."
 
 wrapDirectly 'Missing.setIsInBounds "Set the given GEP instruction to be inbounds or not."
@@ -438,3 +561,104 @@ wrapDirectly 'Missing.setIsInBounds "Set the given GEP instruction to be inbound
 wrapDirectly 'Missing.getGEPSourceElementType "Get the source element type of the given GEP operator."
 
 -- TODO: NoWrap flags
+
+-- TODO: wrapDirectly 'Raw.getConstOpcode ""
+wrapDirectly 'Raw.alignOf ""
+wrapDirectly 'Raw.sizeOf ""
+wrapDirectly 'Raw.constNeg ""
+wrapDirectly 'Missing.constNSWNeg ""
+wrapDirectly 'Raw.constNot ""
+wrapDirectly 'Raw.constAdd ""
+wrapDirectly 'Raw.constNSWAdd ""
+wrapDirectly 'Raw.constNUWAdd ""
+wrapDirectly 'Raw.constSub ""
+wrapDirectly 'Raw.constNSWSub ""
+wrapDirectly 'Raw.constNUWSub ""
+wrapDirectly 'Raw.constXor ""
+
+-- | This is a wrapper around @LLVMConstGEP2@
+wrapAs "constGEP" 'Raw.constGEP2 ""
+
+-- | This is a wrapper around @LLVMConstInBoundsGEP2@
+wrapAs "constInBoundsGEP" 'Raw.constInBoundsGEP2 ""
+
+wrapDirectly 'Missing.constGEPWithNoWrapFlags ""
+
+wrapDirectly 'Raw.constTrunc ""
+
+wrapDirectly 'Raw.constPtrToInt ""
+
+wrapDirectly 'Raw.constIntToPtr ""
+
+wrapDirectly 'Raw.constBitCast ""
+
+wrapDirectly 'Missing.constAddrSpaceCast ""
+
+wrapDirectly 'Raw.constTruncOrBitCast ""
+
+wrapDirectly 'Raw.constPointerCast ""
+
+wrapDirectly 'Raw.constExtractElement ""
+
+wrapDirectly 'Raw.constInsertElement ""
+
+wrapDirectly 'Raw.constShuffleVector ""
+
+wrapDirectly 'Raw.blockAddress ""
+
+wrapDirectly 'Missing.getBlockAddressFunction "Gets the function associated with a given BlockAddress constant value."
+
+wrapDirectly 'Missing.getBlockAddressBasicBlock "Gets the basic block associated with a given BlockAddress constant value. "
+
+-- We cannot provide LLVMGetGlobalParent since that would need to return an LLVMModuleRef with the same finalizer as all other references to the same module
+
+wrapDirectly 'Missing.isDeclaration ""
+
+wrapDirectly 'Missing.getLinkage ""
+
+wrapDirectly 'Missing.setLinkage ""
+
+wrapDirectly 'Missing.getSection ""
+
+wrapDirectly 'Missing.setSection ""
+
+wrapDirectly 'Missing.getVisibility ""
+
+wrapDirectly 'Missing.setVisibility ""
+
+wrapDirectly 'Missing.getDLLStorageClass ""
+
+wrapDirectly 'Missing.setDLLStorageClass ""
+
+wrapDirectly 'Missing.getUnnamedAddress ""
+
+wrapDirectly 'Missing.setUnnamedAddress ""
+
+wrapDirectly 'Missing.globalGetValueType ""
+
+wrapDirectly 'Missing.getAlignment "Obtain the preferred alignment of the value. "
+
+wrapDirectly 'Missing.setAlignment "Set the preferred alignment of the value."
+
+wrapDirectly 'Missing.globalSetMetadata "Sets a metadata attachment, erasing the existing metadata attachment if it already exists for the given kind."
+
+-- wrapDirectly 'Missing.globalAddMetadata "Adds a metadata attachment."
+
+wrapDirectly 'Missing.globalEraseMetadata "Erases a metadata attachment of the given kind if it exists."
+
+wrapDirectly 'Missing.globalClearMetadata "Removes all metadata attachments from this value."
+
+-- wrapDirectly 'Missing.globalAddDebugInfo "Add debuginfo metadata to this global."
+
+{- | Retrieves an array of metadata entries representing the metadata attached to this value.
+Each entry consists of its kind and the actual metadata value.
+-}
+copyAllMetadata :: (MonadIO io) => Global -> io (Strict.Vector (Int, MetaData))
+copyAllMetadata (MkGlobal global) = liftIO do
+    alloca \sizePtr -> do
+        pointer <- Missing.globalCopyAllMetadata global sizePtr
+        size <- peek sizePtr
+        Strict.generateM (fromIntegral size) \i -> do
+            kind <- Missing.valueMetadataEntriesGetKind pointer (fromIntegral i)
+            metadataRef <- Missing.valueMetadataEntriesGetMetadata pointer (fromIntegral i)
+            pure (fromIntegral kind, Wrappers.MkMetaData metadataRef)
