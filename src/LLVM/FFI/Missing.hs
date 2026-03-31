@@ -666,3 +666,6 @@ foreign import capi unsafe "llvm-c/Core.h LLVMValueMetadataEntriesGetKind"
 
 foreign import capi unsafe "llvm-c/Core.h LLVMValueMetadataEntriesGetMetadata"
     valueMetadataEntriesGetMetadata :: ValueMetadataEntriesRef -> CUInt -> IO MetaDataRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetPoison"
+    getPoison :: Raw.TypeRef -> IO Raw.ValueRef

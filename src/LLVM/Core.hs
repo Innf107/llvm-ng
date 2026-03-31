@@ -65,6 +65,12 @@ module LLVM.Core (
     getAggregateElement,
     constVector,
     constantPtrAuth,
+    constNull,
+    constAllOnes,
+    getUndef,
+    getPoison,
+    isNull,
+    constNullPointer,
 
     -- * Globals
     addGlobal,
@@ -662,3 +668,19 @@ copyAllMetadata (MkGlobal global) = liftIO do
             kind <- Missing.valueMetadataEntriesGetKind pointer (fromIntegral i)
             metadataRef <- Missing.valueMetadataEntriesGetMetadata pointer (fromIntegral i)
             pure (fromIntegral kind, Wrappers.MkMetaData metadataRef)
+
+wrapDirectly 'Raw.constNull "Obtain a constant value referring to the null instance of a type.\n\nIf you want to create a null /pointer/, use 'constNullPointer' instead."
+
+wrapDirectly 'Raw.constAllOnes "Obtain a constant value referring to the instance of a type consisting of all ones. "
+
+wrapDirectly 'Raw.getUndef "Obtain a constant value referring to an undefined value of a type."
+
+wrapDirectly 'Missing.getPoison "Obtain a constant value referring to a poison value of a type. "
+
+wrapDirectly 'Raw.isNull "Determine whether a value instance is null."
+
+-- | Obtain a constant value of a null pointer
+constNullPointer :: (?context :: Context) => Value
+constNullPointer = unsafePerformIO do
+    let MkType voidTypeRef = voidType
+    MkValue <$> Raw.constPointerNull voidTypeRef
