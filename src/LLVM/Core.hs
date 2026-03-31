@@ -9,6 +9,7 @@ module LLVM.Core (
     contextCreate,
     moduleCreateWithName,
     addFunction,
+    getNamedFunction,
     appendBasicBlock,
     getParam,
     setIsInBounds,
@@ -238,6 +239,16 @@ addFunction module_ name functionType = liftIO do
         withModule module_ \modulePtr -> do
             Raw.addFunction modulePtr nameCStr type_
     pure (MkValue function)
+
+{- | Obtain a Function value from a Module by its name.
+
+This is a wrapper around LLVMGetNamedFunctionWithLength
+-}
+getNamedFunction :: (MonadIO io) => Module -> Text -> io Value
+getNamedFunction module_ name = liftIO do
+    withModule module_ \moduleRef ->
+        Text.Foreign.withCStringLen name \(cstring, length) -> do
+            MkValue <$> Missing.getNamedFunctionWithLength moduleRef cstring (fromIntegral length)
 
 {- | Obtain a function type consisting of a specified signature.
 
