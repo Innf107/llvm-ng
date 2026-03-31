@@ -244,11 +244,14 @@ addFunction module_ name functionType = liftIO do
 
 This is a wrapper around LLVMGetNamedFunctionWithLength
 -}
-getNamedFunction :: (MonadIO io) => Module -> Text -> io Value
+getNamedFunction :: (MonadIO io) => Module -> Text -> io (Maybe Value)
 getNamedFunction module_ name = liftIO do
     withModule module_ \moduleRef ->
         Text.Foreign.withCStringLen name \(cstring, length) -> do
-            MkValue <$> Missing.getNamedFunctionWithLength moduleRef cstring (fromIntegral length)
+            pointer <- Missing.getNamedFunctionWithLength moduleRef cstring (fromIntegral length)
+            if pointer == nullPtr
+                then pure Nothing
+                else pure (Just (MkValue pointer))
 
 {- | Obtain a function type consisting of a specified signature.
 
