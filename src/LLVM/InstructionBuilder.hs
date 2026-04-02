@@ -266,7 +266,7 @@ wrapDirectly 'Raw.buildStore ""
 
 wrapAs "buildGetElementPtr" 'Raw.buildGEP2 ""
 
-wrapAs "buildInBoundsGetElemntPtr" 'Raw.buildInBoundsGEP2 ""
+wrapAs "buildInBoundsGetElementPtr" 'Raw.buildInBoundsGEP2 ""
 
 wrapDirectly 'Missing.buildGEPWithNoWrapFlags "Creates a GetElementPtr instruction. Similar to 'buildGetElementPtr', but allows specifying the no-wrap flags."
 
