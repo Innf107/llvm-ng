@@ -45,6 +45,11 @@ module LLVM.Core (
     targetExtType,
     getTargetExtTypeName,
 
+    -- ** Operations on Types
+    isFunctionVarArg,
+    getReturnType,
+    getParamTypes,
+
     -- * Constants
     constInt,
     constIntOfString,
@@ -187,6 +192,7 @@ import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Foreign qualified as Text.Foreign
 import Data.Vector.Storable qualified as Storable
+import Data.Vector.Storable.Mutable qualified as Storable.Mutable
 import Data.Vector.Strict qualified as Strict
 import Foreign (Ptr, Storable (peek), alloca, nullPtr, poke)
 import Foreign.C (CUInt, withCString)
@@ -698,3 +704,22 @@ constNullPointer :: (?context :: Context) => Value
 constNullPointer = unsafePerformIO do
     let MkType pointerTypeRef = pointerType
     MkValue <$> Raw.constPointerNull pointerTypeRef
+
+wrapDirectlyPure 'Missing.isFunctionVarArg "Returns whether a function type is variadic."
+
+wrapDirectlyPure 'Missing.getReturnType "Obtain the Type this function Type returns."
+
+-- | Obtain the types of a function's parameters.
+getParamTypes :: FunctionType -> IO (Storable.Vector Type)
+getParamTypes functionType = do
+    let MkType typeRef = functionTypeAsType functionType
+    paramCount <- Raw.countParamTypes typeRef
+
+    array <- Storable.Mutable.new @_ @Raw.TypeRef (fromIntegral paramCount)
+
+    Storable.Mutable.unsafeWith array \pointer -> do
+        Raw.getParamTypes typeRef pointer
+
+    typeRefs <- Storable.unsafeFreeze array
+
+    pure (Storable.unsafeCoerceVector @Raw.TypeRef @Type typeRefs)
