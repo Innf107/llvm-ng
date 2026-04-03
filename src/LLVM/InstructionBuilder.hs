@@ -8,9 +8,11 @@ module LLVM.InstructionBuilder (
 
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO, liftIO)
+import Data.Foldable (for_)
 import Data.Text (Text)
 import Data.Text.Foreign qualified as Text.Foreign
 import Data.Vector.Storable qualified as Storable
+import Data.Vector.Strict qualified as Strict
 import Data.Vector.Strict qualified as Vector
 import Foreign (Storable (sizeOf), allocaBytes)
 import Foreign.Concurrent (newForeignPtr)
@@ -95,7 +97,13 @@ wrapDirectly 'Raw.buildBr ""
 
 wrapDirectly 'Raw.buildCondBr ""
 
-wrapDirectly 'Raw.buildSwitch ""
+buildSwitch :: (MonadIO io) => Builder -> Value -> Strict.Vector (Value, BasicBlock) -> BasicBlock -> io Value
+buildSwitch builder (MkValue scrutinee) cases (MkBlock default_) = liftIO do
+    withBuilder builder \builderRef -> do
+        result <- Raw.buildSwitch builderRef scrutinee default_ (fromIntegral (length cases))
+        for_ cases \(MkValue value, MkBlock target) -> do
+            Raw.addCase result value target
+        pure (MkValue result)
 
 wrapDirectly 'Raw.buildIndirectBr ""
 
@@ -120,8 +128,6 @@ wrapDirectly 'Missing.buildCatchPad ""
 wrapDirectly 'Missing.buildCleanupPad ""
 
 wrapDirectly 'Missing.buildCatchSwitch ""
-
-wrapDirectly 'Raw.addCase ""
 
 wrapDirectly 'Raw.addDestination ""
 
