@@ -710,8 +710,8 @@ wrapDirectlyPure 'Missing.isFunctionVarArg "Returns whether a function type is v
 wrapDirectlyPure 'Missing.getReturnType "Obtain the Type this function Type returns."
 
 -- | Obtain the types of a function's parameters.
-getParamTypes :: FunctionType -> IO (Storable.Vector Type)
-getParamTypes functionType = do
+getParamTypes :: MonadIO io => FunctionType -> io (Storable.Vector Type)
+getParamTypes functionType = liftIO do
     let MkType typeRef = functionTypeAsType functionType
     paramCount <- Raw.countParamTypes typeRef
 
