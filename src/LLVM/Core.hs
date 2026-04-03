@@ -696,5 +696,5 @@ wrapDirectly 'Raw.isNull "Determine whether a value instance is null."
 -- | Obtain a constant value of a null pointer
 constNullPointer :: (?context :: Context) => Value
 constNullPointer = unsafePerformIO do
-    let MkType voidTypeRef = voidType
-    MkValue <$> Raw.constPointerNull voidTypeRef
+    let MkType pointerTypeRef = pointerType
+    MkValue <$> Raw.constPointerNull pointerTypeRef
