@@ -63,6 +63,7 @@ module LLVM.Core (
     getTargetExtTypeNumIntParams,
     getTargetExtTypeIntParam,
     constString,
+    isConstantString,
     NullTermination (..),
     getAsString,
     getRawDataValues,
@@ -539,8 +540,8 @@ data NullTermination
 
 This wraps LLVMConstStringInContext2.
 -}
-constString :: (?context :: Context, MonadIO io) => Text -> NullTermination -> io Value
-constString text nullTermination = liftIO $ withContext ?context \contextRef ->
+constString :: (?context :: Context) => Text -> NullTermination -> Value
+constString text nullTermination = unsafePerformIO $ withContext ?context \contextRef ->
     Text.Foreign.withCStringLen text \(cstring, length) -> do
         let don'tNullTerminate = case nullTermination of
                 NullTerminate -> Raw.false
@@ -570,23 +571,23 @@ getRawDataValues (MkValue valueRef) = liftIO do
 
 wrapDirectly 'Raw.constStructInContext "Create an anonymous ConstantStruct with the specified values."
 
-wrapAs "constArray" 'Missing.constArray2 "Create a ConstantArray from values.\n\nThis is a wrapper around LLVMConstArray2"
+wrapAsPure "constArray" 'Missing.constArray2 "Create a ConstantArray from values.\n\nThis is a wrapper around LLVMConstArray2"
 
-wrapDirectly 'Missing.constDataArray "Create a ConstantDataArray from raw values.\n\nElementTy must be one of i8, i16, i32, i64, half, bfloat, float, or double. Data points to a contiguous buffer of raw values in the host endianness. The element count is inferred from the element type and the data size in bytes."
+wrapDirectlyPure 'Missing.constDataArray "Create a ConstantDataArray from raw values.\n\nElementTy must be one of i8, i16, i32, i64, half, bfloat, float, or double. Data points to a contiguous buffer of raw values in the host endianness. The element count is inferred from the element type and the data size in bytes."
 
-wrapDirectly 'Raw.constNamedStruct "Create a non-anonymous ConstantStruct from values. "
+wrapDirectlyPure 'Raw.constNamedStruct "Create a non-anonymous ConstantStruct from values. "
 
-wrapDirectly 'Missing.getAggregateElement "Get element of a constant aggregate (struct, array or vector) at the specified index. "
+wrapDirectlyPure 'Missing.getAggregateElement "Get element of a constant aggregate (struct, array or vector) at the specified index. "
 
-wrapDirectly 'Raw.constVector "Create a ConstantVector from values."
+wrapDirectlyPure 'Raw.constVector "Create a ConstantVector from values."
 
-wrapDirectly 'Missing.constantPtrAuth "Create a ConstantPtrAuth constant with the given values."
+wrapDirectlyPure 'Missing.constantPtrAuth "Create a ConstantPtrAuth constant with the given values."
 
 wrapDirectly 'Missing.isInBounds "Check whether the given GEP operator is inbounds."
 
 wrapDirectly 'Missing.setIsInBounds "Set the given GEP instruction to be inbounds or not."
 
-wrapDirectly 'Missing.getGEPSourceElementType "Get the source element type of the given GEP operator."
+wrapDirectlyPure 'Missing.getGEPSourceElementType "Get the source element type of the given GEP operator."
 
 -- TODO: NoWrap flags
 
