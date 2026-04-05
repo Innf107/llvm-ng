@@ -46,6 +46,8 @@ module LLVM.Core (
     getTargetExtTypeName,
 
     -- ** Operations on Types
+    typeIsSized,
+    printTypeToText,
     isFunctionVarArg,
     getReturnType,
     getParamTypes,
@@ -201,7 +203,7 @@ import LLVM.Core.Context
 import LLVM.FFI.Core qualified as Raw
 import LLVM.FFI.Missing qualified as Missing
 import LLVM.Internal.Error (withErrorMessage)
-import LLVM.Internal.TH (wrapAs, wrapDirectly, wrapDirectlyPure)
+import LLVM.Internal.TH (wrapAs, wrapDirectly, wrapDirectlyPure, wrapAsPure)
 import LLVM.Internal.Wrappers (
     BasicBlock (..),
     Context (..),
@@ -710,7 +712,7 @@ wrapDirectlyPure 'Missing.isFunctionVarArg "Returns whether a function type is v
 wrapDirectlyPure 'Missing.getReturnType "Obtain the Type this function Type returns."
 
 -- | Obtain the types of a function's parameters.
-getParamTypes :: MonadIO io => FunctionType -> io (Storable.Vector Type)
+getParamTypes :: (MonadIO io) => FunctionType -> io (Storable.Vector Type)
 getParamTypes functionType = liftIO do
     let MkType typeRef = functionTypeAsType functionType
     paramCount <- Raw.countParamTypes typeRef
@@ -723,3 +725,9 @@ getParamTypes functionType = liftIO do
     typeRefs <- Storable.unsafeFreeze array
 
     pure (Storable.unsafeCoerceVector @Raw.TypeRef @Type typeRefs)
+
+-- TODO: LLVMGetTypeKind
+
+wrapDirectlyPure 'Raw.typeIsSized "Whether the type has a known size.\n\nThings that don't have a size are abstract types, labels, and void."
+
+wrapAsPure "printTypeToText" 'Missing.printTypeToString "Return a 'Text' representation of the type."

@@ -228,6 +228,7 @@ wrapResult rawType = case rawType of
         | typeName == ''Wrappers.RawDLLStorageClass -> wrapFunction ''Wrappers.DLLStorageClass 'Wrappers.wrapDLLStorageClass
         | typeName == ''Wrappers.RawUnnamedAddr -> wrapFunction ''Wrappers.UnnamedAddr 'Wrappers.wrapUnnamedAddr
         | typeName == ''Wrappers.UnownedCString -> wrapMonadic ''Text 'Text.Foreign.peekCString
+        | typeName == ''Wrappers.MessageCString -> wrapMonadic ''Text 'Wrappers.wrapMessage
         | typeName == ''Raw.AttributeRef -> wrapNewtype ''Wrappers.Attribute 'Wrappers.MkAttribute
         | typeName == ''Raw.AttributeKind -> wrapIdentity typeName
         | typeName == ''CUInt -> wrapFunction ''Int 'fromIntegral

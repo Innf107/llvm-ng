@@ -61,6 +61,7 @@ module LLVM.Internal.Wrappers (
     unwrapUnnamedAddr,
     ValueMetadataEntriesRef,
     UnownedCString,
+    MessageCString,
 ) where
 
 import Data.Coerce (coerce)
@@ -288,11 +289,14 @@ wrapMessage cstring = do
     Raw.disposeMessage cstring
     pure text
 
--- | Type alias around CString that instructs the TH machinery to wrap it in a 'ByteString' instead of a 'Text' and to assume that it is followed by a length parameter.
+-- | Type alias around 'CString' that instructs the TH machinery to wrap it in a 'ByteString' instead of a 'Text' and to assume that it is followed by a length parameter.
 type CStringLenAsByteString = CString
 
--- | Type alias around CString that instructs the TH machinery to copy it without trying to free the underlying pointer
+-- | Type alias around 'CString' that instructs the TH machinery to copy it without trying to free the underlying pointer
 type UnownedCString = CString
+
+-- | Type alias around 'CString' that instructs the TH machinery to wrap it with 'wrapMessage'
+type MessageCString = CString
 
 type RawLinkage = CUInt
 

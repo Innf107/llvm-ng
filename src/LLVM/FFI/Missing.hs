@@ -28,7 +28,7 @@ import LLVM.Internal.Wrappers (
     RawUnnamedAddr,
     RawVisibility,
     UnownedCString,
-    ValueMetadataEntriesRef,
+    ValueMetadataEntriesRef, MessageCString,
  )
 
 foreign import capi unsafe "llvm-c/Core.h LLVMPrintModuleToFile"
@@ -678,3 +678,6 @@ foreign import capi unsafe "llvm-c/Core.h LLVMIsFunctionVarArg"
 
 foreign import capi unsafe "llvm-c/Core.h LLVMGetReturnType"
     getReturnType :: FunctionTypeRef -> IO Raw.TypeRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMPrintTypeToString"
+    printTypeToString :: Raw.TypeRef -> IO MessageCString
