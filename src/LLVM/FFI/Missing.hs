@@ -690,10 +690,10 @@ foreign import capi unsafe "llvm-c/Core.h LLVMGetNumArgOperands"
     getNumArgOperands :: Raw.ValueRef -> IO CUInt
 
 foreign import capi unsafe "llvm-c/Core.h LLVMSetInstructionCallConv"
-    setInstructionCallConv :: Raw.ValueRef -> CUInt -> IO ()
+    setInstructionCallConv :: Raw.ValueRef -> RawCallingConvention -> IO ()
 
 foreign import capi unsafe "llvm-c/Core.h LLVMGetInstructionCallConv"
-    getInstructionCallConv :: Raw.ValueRef -> IO CUInt
+    getInstructionCallConv :: Raw.ValueRef -> IO RawCallingConvention
 
 foreign import capi unsafe "llvm-c/Core.h LLVMSetInstrParamAlignment"
     setInstrParamAlignment :: Raw.ValueRef -> CUInt -> CUInt -> IO ()

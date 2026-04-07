@@ -255,6 +255,7 @@ module LLVM.Core (
     Raw.Visibility,
     TailCallKind (..),
     OperandBundle,
+    CallingConvention,
 
     -- * Debugging
     dumpModule,

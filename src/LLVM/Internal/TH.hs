@@ -253,6 +253,7 @@ wrapResult rawType = case rawType of
         | typeName == ''Raw.AttributeRef -> wrapNewtype ''Wrappers.Attribute 'Wrappers.MkAttribute
         | typeName == ''Raw.AttributeKind -> wrapIdentity typeName
         | typeName == ''Wrappers.OwnedOperandBundleRef -> wrapMonadic ''Wrappers.OperandBundle 'Wrappers.wrapOwnedOperandBundle
+        | typeName == ''Wrappers.RawCallingConvention -> wrapNewtype ''Wrappers.CallingConvention 'Wrappers.MkCallingConvention
         | typeName == ''CUInt -> wrapFunction ''Int 'fromIntegral
         | typeName == ''CInt -> wrapFunction ''Int 'fromIntegral
         | typeName == ''Word64 -> wrapIdentity typeName
