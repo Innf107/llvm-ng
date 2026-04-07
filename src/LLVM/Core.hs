@@ -167,6 +167,7 @@ module LLVM.Core (
     preserveAllCallConv,
     swiftCallConv,
     cXXFASTTLSCallConv,
+    tailCallConv,
     x86StdcallCallConv,
     x86FastcallCallConv,
     aRMAPCSCallConv,
@@ -897,6 +898,8 @@ swiftCallConv :: CallingConvention
 swiftCallConv = MkCallingConvention 16
 cXXFASTTLSCallConv :: CallingConvention
 cXXFASTTLSCallConv = MkCallingConvention 17
+tailCallConv :: CallingConvention
+tailCallConv = MkCallingConvention 18
 x86StdcallCallConv :: CallingConvention
 x86StdcallCallConv = MkCallingConvention 64
 x86FastcallCallConv :: CallingConvention
