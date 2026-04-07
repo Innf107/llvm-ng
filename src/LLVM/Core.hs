@@ -205,7 +205,7 @@ module LLVM.Core (
     FunctionType,
     Raw.Linkage,
     Raw.Visibility,
-    TailCallKind,
+    TailCallKind(..),
     OperandBundle,
 
     -- * Debugging
