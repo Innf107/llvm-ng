@@ -205,6 +205,8 @@ module LLVM.Core (
     FunctionType,
     Raw.Linkage,
     Raw.Visibility,
+    TailCallKind,
+    OperandBundle,
 
     -- * Debugging
     dumpModule,
@@ -249,6 +251,8 @@ import LLVM.Internal.Wrappers (
     RealPredicate (..),
     Type (..),
     Value (..),
+    TailCallKind(..),
+    OperandBundle,
     functionTypeAsType,
     unsafeTypeAsFunctionType,
     withContext,
