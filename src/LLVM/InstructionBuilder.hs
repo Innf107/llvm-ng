@@ -14,7 +14,8 @@ import Data.Text.Foreign qualified as Text.Foreign
 import Data.Vector.Storable qualified as Storable
 import Data.Vector.Strict qualified as Strict
 import Data.Vector.Strict qualified as Vector
-import Foreign (Storable (sizeOf), allocaBytes)
+import Foreign (Ptr, Storable (sizeOf), allocaBytes)
+import Foreign.C (CString, CUInt)
 import Foreign.Concurrent (newForeignPtr)
 import Foreign.Ptr (nullPtr)
 import LLVM.Core (FastMathFlags)
@@ -27,7 +28,11 @@ import LLVM.Internal.Wrappers (
     Builder (..),
     Context,
     FastMathFlags (..),
+    FunctionType,
+    FunctionTypeRef,
     MetaData (..),
+    OperandBundle,
+    OperandBundleRef,
     Type (..),
     Value (..),
     unsafeVectorFromCArray,

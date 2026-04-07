@@ -123,6 +123,36 @@ module LLVM.Core (
     -- globalAddDebugInfo,
     copyAllMetadata,
 
+    -- * Instructions
+
+    -- ** Call Sites and Invocations
+    getNumArgOperands,
+    setInstructionCallConv,
+    getInstructionCallConv,
+    setInstrParamAlignment,
+    addCallSiteAttribute,
+    getCallSiteAttributeCount,
+    getCallSiteAttributes,
+    getCallSiteEnumAttribute,
+    getCallSiteStringAttribute,
+    removeCallSiteEnumAttribute,
+    removeCallSiteStringAttribute,
+    getCalledFunctionType,
+    getCalledValue,
+    getNumOperandBundles,
+    getOperandBundleAtIndex,
+    isTailCall,
+    setTailCall,
+    getTailCallKind,
+    setTailCallKind,
+    getNormalDest,
+    getUnwindDest,
+    setNormalDest,
+    setUnwindDest,
+    getCallBrDefaultDest,
+    getCallBrNumIndirectDests,
+    getCallBrIndirectDest,
+
     -- * Constant Expressions
     alignOf,
     sizeOf,
@@ -191,6 +221,7 @@ import Control.Exception (mask_)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as ByteString
+import Data.Coerce (coerce)
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Foreign qualified as Text.Foreign
@@ -204,8 +235,9 @@ import LLVM.Core.Context
 import LLVM.FFI.Core qualified as Raw
 import LLVM.FFI.Missing qualified as Missing
 import LLVM.Internal.Error (withErrorMessage)
-import LLVM.Internal.TH (wrapAs, wrapDirectly, wrapDirectlyPure, wrapAsPure)
+import LLVM.Internal.TH (wrapAs, wrapAsPure, wrapDirectly, wrapDirectlyPure)
 import LLVM.Internal.Wrappers (
+    Attribute,
     BasicBlock (..),
     Context (..),
     FastMathFlags,
@@ -732,3 +764,61 @@ getParamTypes functionType = liftIO do
 wrapDirectlyPure 'Raw.typeIsSized "Whether the type has a known size.\n\nThings that don't have a size are abstract types, labels, and void."
 
 wrapAsPure "printTypeToText" 'Missing.printTypeToString "Return a 'Text' representation of the type."
+
+wrapDirectly 'Missing.getNumArgOperands "Obtain the argument count for a call instruction.\n\nThis expects a 'Value' that corresponds to a llvm::CallInst, llvm::InvokeInst, or llvm::FuncletPadInst."
+
+wrapDirectly 'Missing.setInstructionCallConv "Set the calling convention for a call instruction.\n\nThis expects a 'Value' that corresponds to a llvm::CallInst or llvm::InvokeInst."
+
+wrapDirectly 'Missing.getInstructionCallConv "Obtain the calling convention for a call instruction.\n\nThis expects a 'Value' that corresponds to a llvm::CallInst or llvm::InvokeInst."
+
+wrapDirectly 'Missing.setInstrParamAlignment ""
+
+wrapDirectly 'Missing.addCallSiteAttribute ""
+
+wrapDirectly 'Missing.getCallSiteAttributeCount ""
+
+getCallSiteAttributes :: (MonadIO io) => Value -> Int -> io (Storable.Vector Attribute)
+getCallSiteAttributes value@(MkValue valueRef) attributeIndex = liftIO do
+    attributeCount <- getCallSiteAttributeCount value attributeIndex
+    vector <- Storable.Mutable.new @_ @Attribute attributeCount
+    Storable.Mutable.unsafeWith vector \pointer -> do
+        Missing.getCallSiteAttributes valueRef (fromIntegral attributeIndex) (coerce @(Ptr Attribute) @(Ptr Raw.AttributeRef) pointer)
+    Storable.unsafeFreeze vector
+
+wrapDirectly 'Missing.getCallSiteEnumAttribute ""
+
+wrapDirectly 'Missing.getCallSiteStringAttribute ""
+
+wrapDirectly 'Missing.removeCallSiteEnumAttribute ""
+
+wrapDirectly 'Missing.removeCallSiteStringAttribute ""
+
+wrapDirectly 'Missing.getCalledFunctionType "Obtain the function type called by this instruction. "
+
+wrapDirectly 'Raw.getCalledValue "Obtain the 'Value' of to the function invoked by this instruction. "
+
+wrapDirectly 'Missing.getNumOperandBundles "Obtain the number of operand bundles attached to this instruction.\n\nThis only works on llvm::CallInst and llvm::InvokeInst instructions."
+
+wrapDirectly 'Missing.getOperandBundleAtIndex "Obtain the operand bundle attached to this instruction at the given index.\n\nThis only works on llvm::CallInst and llvm::InvokeInst instructions."
+
+wrapDirectly 'Raw.isTailCall "Obtain whether a call instruction is a tail call.\n\nThis only works on llvm::CallInst instructions."
+
+wrapDirectly 'Raw.setTailCall "Set whether a call instruction is a tail call.\n\nThis only works on llvm::CallInst instructions."
+
+wrapDirectly 'Missing.getTailCallKind "Obtain a tail call kind of the call instruction. "
+
+wrapDirectly 'Missing.setTailCallKind "Set the call kind of the call instruction. "
+
+wrapDirectly 'Missing.getNormalDest "Return the normal destination basic block.\n\nThis only works on llvm::InvokeInst instructions."
+
+wrapDirectly 'Missing.getUnwindDest "Return the unwind destination basic block. .\n\nThis only works on llvm::InvokeInst instructions."
+
+wrapDirectly 'Missing.setNormalDest "Set the normal destination basic block.\n\nThis only works on llvm::InvokeInst instructions."
+
+wrapDirectly 'Missing.setUnwindDest "Set the unwind destination basic block. .\n\nThis only works on llvm::InvokeInst instructions."
+
+wrapDirectly 'Missing.getCallBrDefaultDest "Get the default destination of a CallBr instruction."
+
+wrapDirectly 'Missing.getCallBrNumIndirectDests "Get the number of indirect destinations of a CallBr instruction."
+
+wrapDirectly 'Missing.getCallBrIndirectDest "Get the indirect destination of a CallBr instruction at the given index."

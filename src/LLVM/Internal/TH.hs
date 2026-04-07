@@ -17,6 +17,7 @@ import Data.Maybe (catMaybes, mapMaybe)
 import Data.Text (Text)
 import Data.Text.Foreign qualified as Text.Foreign
 import Data.Vector.Storable qualified as Storable
+import Data.Vector.Strict qualified as Strict
 import Data.Word (Word64, Word8)
 import Foreign (Ptr)
 import Foreign.C (CDouble, CInt, CUInt)
@@ -24,7 +25,7 @@ import Foreign.C.String (CString)
 import Foreign.C.Types (CSize)
 import GHC.Stack (HasCallStack)
 import LLVM.FFI.Core qualified as Raw
-import LLVM.Internal.Wrappers (CStringLenAsByteString)
+import LLVM.Internal.Wrappers (CStringLenAsByteString, CStringLenAsText)
 import LLVM.Internal.Wrappers qualified as Wrappers
 
 wrapDirectly :: Name -> String -> TH.DecsQ
@@ -63,7 +64,7 @@ wrapBase isPure wrappedFunctionName rawFunctionName docString = do
             case argumentType of
                 Plain type_ -> wrapParameter type_ name
                 Array elementType -> wrapArray elementType name
-                CStringLenAsByteString -> wrapCStringLenAsByteString name
+                CStringLenAs kind -> wrapCStringLenAs kind name
                 Context -> do
                     name <- TH.newName "context"
                     pure (Nothing, [TH.varE name], (\body -> [|Wrappers.withContext ?context \ $(TH.varP name) -> $body|]))
@@ -107,8 +108,10 @@ wrapBase isPure wrappedFunctionName rawFunctionName docString = do
 data ArgumentType
     = Plain TH.Type
     | Array TH.Type
-    | CStringLenAsByteString
+    | CStringLenAs CStringLenKind
     | Context
+
+data CStringLenKind = AsByteString | AsText
 
 parseTypes :: [TH.Type] -> ([ArgumentType], Bool)
 parseTypes types = case types of
@@ -119,7 +122,11 @@ parseTypes types = case types of
     (TH.ConT cStringAsByteStringName) : TH.ConT csizeName : rest
         | cStringAsByteStringName == ''CStringLenAsByteString && csizeName == ''CSize -> do
             let (parsed, hasContext) = parseTypes rest
-            (CStringLenAsByteString : parsed, hasContext)
+            (CStringLenAs AsByteString : parsed, hasContext)
+    (TH.ConT cStringAsTextName) : TH.ConT csizeName : rest
+        | cStringAsTextName == ''CStringLenAsText && (csizeName == ''CSize || csizeName == ''CUInt) -> do
+            let (parsed, hasContext) = parseTypes rest
+            (CStringLenAs AsText : parsed, hasContext)
     (TH.ConT contextName : rest)
         | contextName == ''Raw.ContextRef -> do
             let (parsed, _hasContext) = parseTypes rest
@@ -151,6 +158,7 @@ wrapParameter rawType varName = case rawType of
         | typeName == ''Wrappers.RawVisibility -> wrapFunction ''Raw.Visibility 'Wrappers.unwrapVisibility
         | typeName == ''Wrappers.RawDLLStorageClass -> wrapFunction ''Wrappers.DLLStorageClass 'Wrappers.unwrapDLLStorageClass
         | typeName == ''Wrappers.RawUnnamedAddr -> wrapFunction ''Wrappers.UnnamedAddr 'Wrappers.unwrapUnnamedAddr
+        | typeName == ''Wrappers.RawTailCallKind -> wrapFunction ''Wrappers.TailCallKind 'Wrappers.unwrapTailCallKind
         -- We have to do this horrible hack since llvm-ffi wraps its CUInt in a completely useless, but non-exported type synonym
         -- of the same name for some reason
         | TH.nameBase typeName == "CUInt" -> wrapFunction ''Int 'fromIntegral
@@ -189,7 +197,7 @@ wrapArray elementType varName = case elementType of
     TH.ConT elementName
         | elementName == ''Raw.ValueRef -> withWrapper ''Wrappers.Value 'Wrappers.withValueArray
         | elementName == ''Raw.TypeRef -> withWrapper ''Wrappers.Type 'Wrappers.withTypeArray
-        | elementName == ''Wrappers.OperandBundleRef -> withWrapper ''Wrappers.OperandBundle 'Wrappers.withOperandBundleArray
+        | elementName == ''Wrappers.OperandBundleRef -> withStrictWrapper ''Wrappers.OperandBundle 'Wrappers.withOperandBundleArray
     _ -> fail $ "Unable to wrap array of unsupported elements type: " <> show elementType
   where
     withWrapper wrappedElementType function = do
@@ -198,13 +206,24 @@ wrapArray elementType varName = case elementType of
         let bodyTransformer body = [|$(TH.varE function) $(TH.varE varName) \ $(TH.varP pointerName) $(TH.varP lengthName) -> $body|]
         vectorType <- [t|Storable.Vector $(TH.conT wrappedElementType)|]
         pure (Just vectorType, [TH.varE pointerName, [e|fromIntegral $(TH.varE lengthName)|]], bodyTransformer)
+    withStrictWrapper wrappedElementType function = do
+        pointerName <- TH.newName "pointer"
+        lengthName <- TH.newName "length"
+        let bodyTransformer body = [|$(TH.varE function) $(TH.varE varName) \ $(TH.varP pointerName) $(TH.varP lengthName) -> $body|]
+        vectorType <- [t|Strict.Vector $(TH.conT wrappedElementType)|]
+        pure (Just vectorType, [TH.varE pointerName, [e|fromIntegral $(TH.varE lengthName)|]], bodyTransformer)
 
-wrapCStringLenAsByteString :: Name -> Q (Maybe TH.Type, [TH.ExpQ], TH.ExpQ -> TH.ExpQ)
-wrapCStringLenAsByteString varName = do
+wrapCStringLenAs :: CStringLenKind -> Name -> Q (Maybe TH.Type, [TH.ExpQ], TH.ExpQ -> TH.ExpQ)
+wrapCStringLenAs kind varName = do
     pointerName <- TH.newName "pointer"
     lengthName <- TH.newName "length"
-    let bodyTransformer body = [|ByteString.useAsCStringLen $(TH.varE varName) \($(TH.varP pointerName), $(TH.varP lengthName)) -> $body|]
-    pure (Just (TH.ConT ''ByteString), [TH.varE pointerName, [e|fromIntegral $(TH.varE lengthName)|]], bodyTransformer)
+    case kind of
+        AsByteString -> do
+            let bodyTransformer body = [|ByteString.useAsCStringLen $(TH.varE varName) \($(TH.varP pointerName), $(TH.varP lengthName)) -> $body|]
+            pure (Just (TH.ConT ''ByteString), [TH.varE pointerName, [e|fromIntegral $(TH.varE lengthName)|]], bodyTransformer)
+        AsText -> do
+            let bodyTransformer body = [|Text.Foreign.withCStringLen $(TH.varE varName) \($(TH.varP pointerName), $(TH.varP lengthName)) -> $body|]
+            pure (Just (TH.ConT ''Text), [TH.varE pointerName, [e|fromIntegral $(TH.varE lengthName)|]], bodyTransformer)
 
 wrapResult :: TH.Type -> Q (TH.Type, TH.ExpQ -> TH.ExpQ)
 wrapResult rawType = case rawType of
@@ -227,10 +246,12 @@ wrapResult rawType = case rawType of
         | typeName == ''Wrappers.RawVisibility -> wrapFunction ''Raw.Visibility 'Wrappers.wrapVisibility
         | typeName == ''Wrappers.RawDLLStorageClass -> wrapFunction ''Wrappers.DLLStorageClass 'Wrappers.wrapDLLStorageClass
         | typeName == ''Wrappers.RawUnnamedAddr -> wrapFunction ''Wrappers.UnnamedAddr 'Wrappers.wrapUnnamedAddr
+        | typeName == ''Wrappers.RawTailCallKind -> wrapFunction ''Wrappers.TailCallKind 'Wrappers.wrapTailCallKind
         | typeName == ''Wrappers.UnownedCString -> wrapMonadic ''Text 'Text.Foreign.peekCString
         | typeName == ''Wrappers.MessageCString -> wrapMonadic ''Text 'Wrappers.wrapMessage
         | typeName == ''Raw.AttributeRef -> wrapNewtype ''Wrappers.Attribute 'Wrappers.MkAttribute
         | typeName == ''Raw.AttributeKind -> wrapIdentity typeName
+        | typeName == ''Wrappers.OwnedOperandBundleRef -> wrapMonadic ''Wrappers.OperandBundle 'Wrappers.wrapOwnedOperandBundle
         | typeName == ''CUInt -> wrapFunction ''Int 'fromIntegral
         | typeName == ''CInt -> wrapFunction ''Int 'fromIntegral
         | typeName == ''Word64 -> wrapIdentity typeName

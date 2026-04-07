@@ -1,3 +1,5 @@
+{-# LANGUAGE CApiFFI #-}
+
 module LLVM.Internal.Wrappers (
     Context (..),
     withContext,
@@ -29,7 +31,6 @@ module LLVM.Internal.Wrappers (
     OpaqueOperandBundle,
     OperandBundleRef,
     OperandBundle (..),
-    withOperandBundleArray,
     OpaqueDiagnosticInfo,
     DiagnosticInfoRef,
     DiagnosticInfo (..),
@@ -59,18 +60,28 @@ module LLVM.Internal.Wrappers (
     UnnamedAddr (..),
     wrapUnnamedAddr,
     unwrapUnnamedAddr,
+    RawTailCallKind,
+    TailCallKind (..),
+    wrapTailCallKind,
+    unwrapTailCallKind,
     ValueMetadataEntriesRef,
     UnownedCString,
     MessageCString,
+    CStringLenAsText,
+    OwnedOperandBundleRef,
+    wrapOwnedOperandBundle,
+    withOperandBundleArray,
 ) where
 
 import Data.Coerce (coerce)
 import Data.Text (Text)
 import Data.Text.Foreign qualified as Text.Foreign
 import Data.Vector.Storable qualified as Storable
-import Foreign (ForeignPtr, Storable (sizeOf), plusPtr, withForeignPtr)
+import Data.Vector.Strict qualified as Strict
+import Foreign (ForeignPtr, Storable (sizeOf), newForeignPtr, plusPtr, withForeignPtr)
 import Foreign.C (CInt, CSize, CUInt)
 import Foreign.C.String (CString)
+import Foreign.ForeignPtr (FinalizerPtr)
 import Foreign.Ptr (Ptr)
 import Foreign.Storable (peek)
 import LLVM.FFI.Core qualified as Raw
@@ -170,8 +181,30 @@ newtype FastMathFlags = MkFastMathFlags CUInt
 data OpaqueOperandBundle
 type OperandBundleRef = Ptr OpaqueOperandBundle
 
-newtype OperandBundle = MkOperandBundle OperandBundleRef
-    deriving newtype (Storable)
+newtype OperandBundle = MkOperandBundle (ForeignPtr OpaqueOperandBundle)
+
+-- | Type synonym that instructs the TH machinery to attach a finalizer to this returned operand bundle
+type OwnedOperandBundleRef = OperandBundleRef
+
+-- This is defined here to avoid the cyclical dependency with LLVM.FFI.Missing
+foreign import capi unsafe "llvm-c/Core.h &LLVMDisposeOperandBundle"
+    disposeOperandBundle :: FinalizerPtr OpaqueOperandBundle
+
+wrapOwnedOperandBundle :: OperandBundleRef -> IO OperandBundle
+wrapOwnedOperandBundle ref = do
+    MkOperandBundle <$> newForeignPtr disposeOperandBundle ref
+
+withOperandBundleArray :: Strict.Vector OperandBundle -> (Ptr OperandBundleRef -> CUInt -> IO a) -> IO a
+withOperandBundleArray array cont = withAllForeignPointers [] (Strict.toList array) \bundleRefs -> do
+    let size = Strict.length array
+    let vector = Storable.fromListN size bundleRefs
+    Storable.unsafeWith vector \ptr -> cont ptr (fromIntegral size)
+  where
+    withAllForeignPointers unwrapped operandBundles cont = case operandBundles of
+        [] -> cont (reverse unwrapped)
+        (MkOperandBundle foreignPtr : rest) -> do
+            withForeignPtr foreignPtr \rawPtr -> do
+                withAllForeignPointers (rawPtr : unwrapped) rest cont
 
 data OpaqueDiagnosticInfo
 type DiagnosticInfoRef = Ptr OpaqueDiagnosticInfo
@@ -179,12 +212,7 @@ type DiagnosticInfoRef = Ptr OpaqueDiagnosticInfo
 newtype DiagnosticInfo = MkDiagnosticInfo DiagnosticInfoRef
 
 newtype Attribute = MkAttribute Raw.AttributeRef
-
-withOperandBundleArray :: Storable.Vector OperandBundle -> (Ptr OperandBundleRef -> CUInt -> IO a) -> IO a
-withOperandBundleArray vector cont = do
-    -- This is safe since `OperandBundle` newtype derives its `Storable` instance from the underlying OperandBundleRef
-    let vectorOfPointers = Storable.unsafeCoerceVector @OperandBundle @OperandBundleRef vector
-    Storable.unsafeWith vectorOfPointers \ptr -> cont ptr (fromIntegral (Storable.length vector))
+    deriving newtype (Storable)
 
 unsafeVectorFromCArray :: forall a. (Storable a) => Ptr a -> Int -> IO (Storable.Vector a)
 unsafeVectorFromCArray ptr size = do
@@ -215,6 +243,7 @@ data IntPredicate
       IntSLT
     | -- | signed less or equal
       IntSLE
+    deriving (Show)
 
 unwrapIntPredicate :: IntPredicate -> RawIntPredicate
 unwrapIntPredicate = \case
@@ -263,6 +292,7 @@ data RealPredicate
       RealUNE
     | -- | Always true (always folded)
       RealPredicateTrue
+    deriving (Show)
 
 unwrapRealPredicate :: RealPredicate -> RawRealPredicate
 unwrapRealPredicate = \case
@@ -288,6 +318,9 @@ wrapMessage cstring = do
     text <- Text.Foreign.peekCString cstring
     Raw.disposeMessage cstring
     pure text
+
+-- | Type alias around 'CString' that instructs the TH machinery to wrap it in a 'Text' and to assume that it is followed by a length parameter.
+type CStringLenAsText = CString
 
 -- | Type alias around 'CString' that instructs the TH machinery to wrap it in a 'ByteString' instead of a 'Text' and to assume that it is followed by a length parameter.
 type CStringLenAsByteString = CString
@@ -362,6 +395,7 @@ data DLLStorageClass
     = DefaultStorageClass
     | ImportStorageClass
     | ExportStorageClass
+    deriving (Show)
 
 wrapDLLStorageClass :: RawDLLStorageClass -> DLLStorageClass
 wrapDLLStorageClass = \case
@@ -382,6 +416,7 @@ data UnnamedAddr
     = NoUnnamedAddr
     | LocalUnnamedAddr
     | GlobalUnnamedAddr
+    deriving (Show)
 
 wrapUnnamedAddr :: RawUnnamedAddr -> UnnamedAddr
 wrapUnnamedAddr = \case
@@ -395,6 +430,30 @@ unwrapUnnamedAddr = \case
     NoUnnamedAddr -> 0
     LocalUnnamedAddr -> 1
     GlobalUnnamedAddr -> 2
+
+type RawTailCallKind = CUInt
+
+data TailCallKind
+    = TailCallKindNone
+    | TailCallKindTail
+    | TailCallKindMustTail
+    | TailCallKindNoTail
+    deriving (Show)
+
+wrapTailCallKind :: RawTailCallKind -> TailCallKind
+wrapTailCallKind = \case
+    0 -> TailCallKindNone
+    1 -> TailCallKindTail
+    2 -> TailCallKindMustTail
+    3 -> TailCallKindNoTail
+    value -> error $ "wrapTailCallKind: invalid unnamed address value: " <> show value
+
+unwrapTailCallKind :: TailCallKind -> RawTailCallKind
+unwrapTailCallKind = \case
+    TailCallKindNone -> 0
+    TailCallKindTail -> 1
+    TailCallKindMustTail -> 2
+    TailCallKindNoTail -> 3
 
 data OpaqueValueMetadataEntries
 

@@ -13,22 +13,26 @@ import Foreign.Ptr (Ptr)
 import LLVM.FFI.Core qualified as Raw
 import LLVM.Internal.Wrappers (
     CStringLenAsByteString,
+    CStringLenAsText,
     DiagnosticInfoRef,
     FunctionTypeRef,
     GlobalRef,
     IntPredicate,
+    MessageCString,
     MetaDataRef,
     OperandBundleRef,
+    OwnedOperandBundleRef,
     RawDLLStorageClass,
     RawFastMathFlags,
     RawGEPNoWrapFlags,
     RawIntPredicate,
     RawLinkage,
     RawRealPredicate,
+    RawTailCallKind,
     RawUnnamedAddr,
     RawVisibility,
     UnownedCString,
-    ValueMetadataEntriesRef, MessageCString,
+    ValueMetadataEntriesRef,
  )
 
 foreign import capi unsafe "llvm-c/Core.h LLVMPrintModuleToFile"
@@ -681,3 +685,72 @@ foreign import capi unsafe "llvm-c/Core.h LLVMGetReturnType"
 
 foreign import capi unsafe "llvm-c/Core.h LLVMPrintTypeToString"
     printTypeToString :: Raw.TypeRef -> IO MessageCString
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetNumArgOperands"
+    getNumArgOperands :: Raw.ValueRef -> IO CUInt
+
+foreign import capi unsafe "llvm-c/Core.h LLVMSetInstructionCallConv"
+    setInstructionCallConv :: Raw.ValueRef -> CUInt -> IO ()
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetInstructionCallConv"
+    getInstructionCallConv :: Raw.ValueRef -> IO CUInt
+
+foreign import capi unsafe "llvm-c/Core.h LLVMSetInstrParamAlignment"
+    setInstrParamAlignment :: Raw.ValueRef -> CUInt -> CUInt -> IO ()
+
+foreign import capi unsafe "llvm-c/Core.h LLVMAddCallSiteAttribute"
+    addCallSiteAttribute :: Raw.ValueRef -> CUInt -> Raw.AttributeRef -> IO ()
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetCallSiteAttributeCount"
+    getCallSiteAttributeCount :: Raw.ValueRef -> CUInt -> IO CUInt
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetCallSiteAttributes"
+    getCallSiteAttributes :: Raw.ValueRef -> CUInt -> Ptr Raw.AttributeRef -> IO ()
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetCallSiteEnumAttribute"
+    getCallSiteEnumAttribute :: Raw.ValueRef -> CUInt -> CUInt -> IO Raw.AttributeRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetCallSiteStringAttribute"
+    getCallSiteStringAttribute :: Raw.ValueRef -> CUInt -> CStringLenAsText -> CUInt -> IO Raw.AttributeRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMRemoveCallSiteEnumAttribute"
+    removeCallSiteEnumAttribute :: Raw.ValueRef -> CUInt -> CUInt -> IO ()
+
+foreign import capi unsafe "llvm-c/Core.h LLVMRemoveCallSiteStringAttribute"
+    removeCallSiteStringAttribute :: Raw.ValueRef -> CUInt -> CStringLenAsText -> CUInt -> IO ()
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetCalledFunctionType"
+    getCalledFunctionType :: Raw.ValueRef -> IO FunctionTypeRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetNumOperandBundles"
+    getNumOperandBundles :: Raw.ValueRef -> IO CUInt
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetOperandBundleAtIndex"
+    getOperandBundleAtIndex :: Raw.ValueRef -> CUInt -> IO OwnedOperandBundleRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetTailCallKind"
+    getTailCallKind :: Raw.ValueRef -> IO RawTailCallKind
+
+foreign import capi unsafe "llvm-c/Core.h LLVMSetTailCallKind"
+    setTailCallKind :: Raw.ValueRef -> RawTailCallKind -> IO ()
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetNormalDest"
+    getNormalDest :: Raw.ValueRef -> IO Raw.BasicBlockRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetUnwindDest"
+    getUnwindDest :: Raw.ValueRef -> IO Raw.BasicBlockRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMSetNormalDest"
+    setNormalDest :: Raw.ValueRef -> Raw.BasicBlockRef -> IO ()
+
+foreign import capi unsafe "llvm-c/Core.h LLVMSetUnwindDest"
+    setUnwindDest :: Raw.ValueRef -> Raw.BasicBlockRef -> IO ()
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetCallBrDefaultDest"
+    getCallBrDefaultDest :: Raw.ValueRef -> IO Raw.BasicBlockRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetCallBrNumIndirectDests"
+    getCallBrNumIndirectDests :: Raw.ValueRef -> IO CUInt
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetCallBrIndirectDest"
+    getCallBrIndirectDest :: Raw.ValueRef -> CUInt -> IO Raw.BasicBlockRef
