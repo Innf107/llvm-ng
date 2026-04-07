@@ -71,6 +71,8 @@ module LLVM.Internal.Wrappers (
     OwnedOperandBundleRef,
     wrapOwnedOperandBundle,
     withOperandBundleArray,
+    RawCallingConvention,
+    CallingConvention(..),
 ) where
 
 import Data.Coerce (coerce)
@@ -458,3 +460,9 @@ unwrapTailCallKind = \case
 data OpaqueValueMetadataEntries
 
 type ValueMetadataEntriesRef = Ptr OpaqueValueMetadataEntries
+
+type RawCallingConvention = CUInt
+
+newtype CallingConvention = MkCallingConvention CUInt
+
+

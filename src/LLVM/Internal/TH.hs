@@ -159,6 +159,7 @@ wrapParameter rawType varName = case rawType of
         | typeName == ''Wrappers.RawDLLStorageClass -> wrapFunction ''Wrappers.DLLStorageClass 'Wrappers.unwrapDLLStorageClass
         | typeName == ''Wrappers.RawUnnamedAddr -> wrapFunction ''Wrappers.UnnamedAddr 'Wrappers.unwrapUnnamedAddr
         | typeName == ''Wrappers.RawTailCallKind -> wrapFunction ''Wrappers.TailCallKind 'Wrappers.unwrapTailCallKind
+        | typeName == ''Wrappers.RawCallingConvention -> wrapNewtype ''Wrappers.CallingConvention 'Wrappers.MkCallingConvention
         -- We have to do this horrible hack since llvm-ffi wraps its CUInt in a completely useless, but non-exported type synonym
         -- of the same name for some reason
         | TH.nameBase typeName == "CUInt" -> wrapFunction ''Int 'fromIntegral

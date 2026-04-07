@@ -32,7 +32,7 @@ import LLVM.Internal.Wrappers (
     RawUnnamedAddr,
     RawVisibility,
     UnownedCString,
-    ValueMetadataEntriesRef,
+    ValueMetadataEntriesRef, RawCallingConvention,
  )
 
 foreign import capi unsafe "llvm-c/Core.h LLVMPrintModuleToFile"
@@ -754,3 +754,7 @@ foreign import capi unsafe "llvm-c/Core.h LLVMGetCallBrNumIndirectDests"
 
 foreign import capi unsafe "llvm-c/Core.h LLVMGetCallBrIndirectDest"
     getCallBrIndirectDest :: Raw.ValueRef -> CUInt -> IO Raw.BasicBlockRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMSetFunctionCallConv"
+    setFunctionCallConv :: Raw.ValueRef -> RawCallingConvention -> IO ()
+

@@ -123,6 +123,9 @@ module LLVM.Core (
     -- globalAddDebugInfo,
     copyAllMetadata,
 
+    -- ** Operations on function definitions
+    setFunctionCallConv,
+
     -- * Instructions
 
     -- ** Call Sites and Invocations
@@ -152,6 +155,50 @@ module LLVM.Core (
     getCallBrDefaultDest,
     getCallBrNumIndirectDests,
     getCallBrIndirectDest,
+
+    -- * Calling conventions
+    ccallConv,
+    fastCallConv,
+    coldCallConv,
+    gHCCallConv,
+    hiPECallConv,
+    anyRegCallConv,
+    preserveMostCallConv,
+    preserveAllCallConv,
+    swiftCallConv,
+    cXXFASTTLSCallConv,
+    x86StdcallCallConv,
+    x86FastcallCallConv,
+    aRMAPCSCallConv,
+    aRMAAPCSCallConv,
+    aRMAAPCSVFPCallConv,
+    mSP430INTRCallConv,
+    x86ThisCallCallConv,
+    pTXKernelCallConv,
+    pTXDeviceCallConv,
+    sPIRFUNCCallConv,
+    sPIRKERNELCallConv,
+    intelOCLBICallConv,
+    x8664SysVCallConv,
+    win64CallConv,
+    x86VectorCallCallConv,
+    hHVMCallConv,
+    hHVMCCallConv,
+    x86INTRCallConv,
+    aVRINTRCallConv,
+    aVRSIGNALCallConv,
+    aVRBUILTINCallConv,
+    aMDGPUVSCallConv,
+    aAMDGPUGSCallConv,
+    aMDGPUPSCallConv,
+    aMDGPUCSCallConv,
+    aMDGPUKERNELCallConv,
+    x86RegCallCallConv,
+    aMDGPUHSCallConv,
+    mSP430BUILTINCallConv,
+    aMDGPULSCallConv,
+    aMDGPUESCallConv,
+    customCallingConvention,
 
     -- * Constant Expressions
     alignOf,
@@ -205,7 +252,7 @@ module LLVM.Core (
     FunctionType,
     Raw.Linkage,
     Raw.Visibility,
-    TailCallKind(..),
+    TailCallKind (..),
     OperandBundle,
 
     -- * Debugging
@@ -241,6 +288,7 @@ import LLVM.Internal.TH (wrapAs, wrapAsPure, wrapDirectly, wrapDirectlyPure)
 import LLVM.Internal.Wrappers (
     Attribute,
     BasicBlock (..),
+    CallingConvention (MkCallingConvention),
     Context (..),
     FastMathFlags,
     FunctionType (MkFunctionType),
@@ -248,11 +296,11 @@ import LLVM.Internal.Wrappers (
     IntPredicate (..),
     MetaData,
     Module (..),
+    OperandBundle,
     RealPredicate (..),
+    TailCallKind (..),
     Type (..),
     Value (..),
-    TailCallKind(..),
-    OperandBundle,
     functionTypeAsType,
     unsafeTypeAsFunctionType,
     withContext,
@@ -826,3 +874,91 @@ wrapDirectly 'Missing.getCallBrDefaultDest "Get the default destination of a Cal
 wrapDirectly 'Missing.getCallBrNumIndirectDests "Get the number of indirect destinations of a CallBr instruction."
 
 wrapDirectly 'Missing.getCallBrIndirectDest "Get the indirect destination of a CallBr instruction at the given index."
+
+wrapDirectly 'Missing.setFunctionCallConv "Set the calling convention of a function."
+
+ccallConv :: CallingConvention
+ccallConv = MkCallingConvention 0
+fastCallConv :: CallingConvention
+fastCallConv = MkCallingConvention 8
+coldCallConv :: CallingConvention
+coldCallConv = MkCallingConvention 9
+gHCCallConv :: CallingConvention
+gHCCallConv = MkCallingConvention 10
+hiPECallConv :: CallingConvention
+hiPECallConv = MkCallingConvention 11
+anyRegCallConv :: CallingConvention
+anyRegCallConv = MkCallingConvention 13
+preserveMostCallConv :: CallingConvention
+preserveMostCallConv = MkCallingConvention 14
+preserveAllCallConv :: CallingConvention
+preserveAllCallConv = MkCallingConvention 15
+swiftCallConv :: CallingConvention
+swiftCallConv = MkCallingConvention 16
+cXXFASTTLSCallConv :: CallingConvention
+cXXFASTTLSCallConv = MkCallingConvention 17
+x86StdcallCallConv :: CallingConvention
+x86StdcallCallConv = MkCallingConvention 64
+x86FastcallCallConv :: CallingConvention
+x86FastcallCallConv = MkCallingConvention 65
+aRMAPCSCallConv :: CallingConvention
+aRMAPCSCallConv = MkCallingConvention 66
+aRMAAPCSCallConv :: CallingConvention
+aRMAAPCSCallConv = MkCallingConvention 67
+aRMAAPCSVFPCallConv :: CallingConvention
+aRMAAPCSVFPCallConv = MkCallingConvention 68
+mSP430INTRCallConv :: CallingConvention
+mSP430INTRCallConv = MkCallingConvention 69
+x86ThisCallCallConv :: CallingConvention
+x86ThisCallCallConv = MkCallingConvention 70
+pTXKernelCallConv :: CallingConvention
+pTXKernelCallConv = MkCallingConvention 71
+pTXDeviceCallConv :: CallingConvention
+pTXDeviceCallConv = MkCallingConvention 72
+sPIRFUNCCallConv :: CallingConvention
+sPIRFUNCCallConv = MkCallingConvention 75
+sPIRKERNELCallConv :: CallingConvention
+sPIRKERNELCallConv = MkCallingConvention 76
+intelOCLBICallConv :: CallingConvention
+intelOCLBICallConv = MkCallingConvention 77
+x8664SysVCallConv :: CallingConvention
+x8664SysVCallConv = MkCallingConvention 78
+win64CallConv :: CallingConvention
+win64CallConv = MkCallingConvention 79
+x86VectorCallCallConv :: CallingConvention
+x86VectorCallCallConv = MkCallingConvention 80
+hHVMCallConv :: CallingConvention
+hHVMCallConv = MkCallingConvention 81
+hHVMCCallConv :: CallingConvention
+hHVMCCallConv = MkCallingConvention 82
+x86INTRCallConv :: CallingConvention
+x86INTRCallConv = MkCallingConvention 83
+aVRINTRCallConv :: CallingConvention
+aVRINTRCallConv = MkCallingConvention 84
+aVRSIGNALCallConv :: CallingConvention
+aVRSIGNALCallConv = MkCallingConvention 85
+aVRBUILTINCallConv :: CallingConvention
+aVRBUILTINCallConv = MkCallingConvention 86
+aMDGPUVSCallConv :: CallingConvention
+aMDGPUVSCallConv = MkCallingConvention 87
+aAMDGPUGSCallConv :: CallingConvention
+aAMDGPUGSCallConv = MkCallingConvention 88
+aMDGPUPSCallConv :: CallingConvention
+aMDGPUPSCallConv = MkCallingConvention 89
+aMDGPUCSCallConv :: CallingConvention
+aMDGPUCSCallConv = MkCallingConvention 90
+aMDGPUKERNELCallConv :: CallingConvention
+aMDGPUKERNELCallConv = MkCallingConvention 91
+x86RegCallCallConv :: CallingConvention
+x86RegCallCallConv = MkCallingConvention 92
+aMDGPUHSCallConv :: CallingConvention
+aMDGPUHSCallConv = MkCallingConvention 93
+mSP430BUILTINCallConv :: CallingConvention
+mSP430BUILTINCallConv = MkCallingConvention 94
+aMDGPULSCallConv :: CallingConvention
+aMDGPULSCallConv = MkCallingConvention 95
+aMDGPUESCallConv :: CallingConvention
+aMDGPUESCallConv = MkCallingConvention 96
+
+customCallingConvention :: CUInt -> CallingConvention
+customCallingConvention = MkCallingConvention
