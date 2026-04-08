@@ -498,7 +498,7 @@ foreign import capi unsafe "llvm-c/Core.h LLVMGetSyncScopeID"
     getSyncScopeId :: Raw.ContextRef -> CString -> CUInt -> IO CUInt
 
 foreign import capi unsafe "llvm-c/Core.h LLVMCreateTypeAttribute"
-    createTypeAttribute :: Raw.ContextRef -> CUInt -> Raw.TypeRef -> IO Raw.AttributeRef
+    createTypeAttribute :: Raw.ContextRef -> Raw.AttributeKind -> Raw.TypeRef -> IO Raw.AttributeRef
 
 foreign import capi unsafe "llvm-c/Core.h LLVMGetTypeAttributeValue"
     getTypeAttributeValue :: Raw.AttributeRef -> IO Raw.TypeRef
@@ -714,7 +714,7 @@ foreign import capi unsafe "llvm-c/Core.h LLVMGetCallSiteStringAttribute"
     getCallSiteStringAttribute :: Raw.ValueRef -> CUInt -> CStringLenAsText -> CUInt -> IO Raw.AttributeRef
 
 foreign import capi unsafe "llvm-c/Core.h LLVMRemoveCallSiteEnumAttribute"
-    removeCallSiteEnumAttribute :: Raw.ValueRef -> CUInt -> CUInt -> IO ()
+    removeCallSiteEnumAttribute :: Raw.ValueRef -> CUInt -> Raw.AttributeKind -> IO ()
 
 foreign import capi unsafe "llvm-c/Core.h LLVMRemoveCallSiteStringAttribute"
     removeCallSiteStringAttribute :: Raw.ValueRef -> CUInt -> CStringLenAsText -> CUInt -> IO ()
