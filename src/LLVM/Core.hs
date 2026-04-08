@@ -773,10 +773,12 @@ copyAllMetadata (MkGlobal global) = liftIO do
     alloca \sizePtr -> do
         pointer <- Missing.globalCopyAllMetadata global sizePtr
         size <- peek sizePtr
-        Strict.generateM (fromIntegral size) \i -> do
+        vector <- Strict.generateM (fromIntegral size) \i -> do
             kind <- Missing.valueMetadataEntriesGetKind pointer (fromIntegral i)
             metadataRef <- Missing.valueMetadataEntriesGetMetadata pointer (fromIntegral i)
             pure (fromIntegral kind, Wrappers.MkMetaData metadataRef)
+        Missing.disposeValueMetadataEntries pointer
+        pure vector
 
 wrapDirectly 'Raw.constNull "Obtain a constant value referring to the null instance of a type.\n\nIf you want to create a null /pointer/, use 'constNullPointer' instead."
 
