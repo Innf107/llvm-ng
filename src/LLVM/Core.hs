@@ -246,6 +246,7 @@ module LLVM.Core (
     Value,
     Global,
     Type,
+    Attribute,
     unsafeTypeAsFunctionType,
     functionTypeAsType,
     MetaData,
