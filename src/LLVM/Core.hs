@@ -145,6 +145,7 @@ module LLVM.Core (
     setPrologueData,
     getAttributeCountAtIndex,
     getAttributesAtIndex,
+    addAttributeAtIndex,
     getEnumAttributeAtIndex,
     getStringAttributeAtIndex,
     removeEnumAttributeAtIndex,
@@ -1081,6 +1082,8 @@ getAttributesAtIndex (MkValue function) attributeIndex = do
     Storable.Mutable.unsafeWith vector \pointer -> Missing.getAttributesAtIndex function (fromIntegral attributeIndex) (coerce pointer)
 
     Storable.unsafeFreeze vector
+
+wrapDirectly 'Missing.addAttributeAtIndex "Add an attribute to a function."
 
 wrapDirectly 'Missing.getEnumAttributeAtIndex ""
 
