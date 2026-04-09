@@ -1,3 +1,4 @@
+#!/usr/bin/env polaris
 module List = import("@std/list.pls")
 
 let missing = !cat "src/LLVM/FFI/Missing.hs"
@@ -13,7 +14,7 @@ let isContainedInAny(function, files) = match files {
 }
 
 List.for(functions, \function -> {
-    if not isContainedInAny(function, ["src/LLVM/Core.hs", "src/LLVM/InstructionBuilder.hs", "src/LLVM/Core/Context.hs"]) then {
+    if not isContainedInAny(function, ["src/LLVM/Core.hs", "src/LLVM/InstructionBuilder.hs", "src/LLVM/Core/Context.hs", "src/LLVM/Core/Phi.hs"]) then {
         print("Unused FFI binding for ${function}")
     } else {}
 })

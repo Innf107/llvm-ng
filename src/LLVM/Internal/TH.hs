@@ -116,7 +116,7 @@ data CStringLenKind = AsByteString | AsText
 parseTypes :: [TH.Type] -> ([ArgumentType], Bool)
 parseTypes types = case types of
     (TH.AppT (TH.ConT ptrName) argument : TH.ConT uintName : rest)
-        | ptrName == ''Ptr && (TH.nameBase uintName == "CUInt" || uintName == ''Word64) -> do
+        | ptrName == ''Ptr && (TH.nameBase uintName == "CUInt" || uintName == ''Word64 || uintName == ''CSize) -> do
             let (parsed, hasContext) = parseTypes rest
             (Array argument : parsed, hasContext)
     (TH.ConT cStringAsByteStringName) : TH.ConT csizeName : rest

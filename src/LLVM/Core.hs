@@ -125,6 +125,31 @@ module LLVM.Core (
 
     -- ** Operations on function definitions
     setFunctionCallConv,
+    deleteFunction,
+    hasPersonalityFn,
+    getPersonalityFn,
+    setPersonalityFn,
+    lookupIntrinsicID,
+    getIntrinsicID,
+    getIntrinsicDeclaration,
+    intrinsicGetType,
+    intrinsicGetName,
+    intrinsicOverloadedName,
+    intrinsicIsOverloaded,
+    getFunctionCallConv,
+    getGC,
+    setGC,
+    getPrefixData,
+    setPrefixData,
+    getPrologueData,
+    setPrologueData,
+    getAttributeCountAtIndex,
+    getAttributesAtIndex,
+    getEnumAttributeAtIndex,
+    getStringAttributeAtIndex,
+    removeEnumAttributeAtIndex,
+    removeStringAttributeAtIndex,
+    addTargetDependentFunctionAttr,
 
     -- * Instructions
 
@@ -970,3 +995,99 @@ aMDGPUESCallConv = MkCallingConvention 96
 
 customCallingConvention :: CUInt -> CallingConvention
 customCallingConvention = MkCallingConvention
+
+wrapDirectly 'Raw.deleteFunction "Remove a function from its containing module and deletes it."
+
+wrapDirectly 'Missing.hasPersonalityFn "Check whether the given function has a personality function."
+
+wrapDirectly 'Missing.getPersonalityFn "Obtain the personality function attached to the function."
+
+wrapDirectly 'Missing.setPersonalityFn "Set the personality function attached to the function."
+
+wrapDirectly 'Missing.lookupIntrinsicID "Obtain the intrinsic ID number which matches the given function name."
+
+wrapDirectly 'Missing.getIntrinsicID "Obtain the ID number from a function instance."
+
+wrapDirectly 'Missing.getIntrinsicDeclaration "Get or insert the declaration of an intrinsic.\n\nFor overloaded intrinsics, parameter types must be provided to uniquely identify an overload."
+
+wrapDirectly 'Missing.intrinsicGetType "Retrieves the type of an intrinsic.\n\nFor overloaded intrinsics, parameter types must be provided to uniquely identify an overload."
+
+-- TODO: error handling
+
+-- | Retrieves the name of an intrinsic.
+intrinsicGetName :: Int -> Text
+intrinsicGetName intrinsicID = unsafePerformIO do
+    alloca \sizePtr -> do
+        cstring <- Missing.intrinsicGetName (fromIntegral intrinsicID) sizePtr
+        size <- peek sizePtr
+        Text.Foreign.peekCStringLen (cstring, fromIntegral size)
+
+{- | Copies the name of an overloaded intrinsic identified by a given list of parameter types.
+
+This uses LLVMIntrinsicCopyOverloadedName2 internally.
+-}
+intrinsicOverloadedName :: Module -> Int -> Storable.Vector Type -> Text
+intrinsicOverloadedName module_ intrinsicID arguments = unsafePerformIO do
+    withModule module_ \moduleRef -> do
+        withTypeArray arguments \argumentPtr argumentSize -> do
+            alloca \sizePtr -> do
+                cstring <- Missing.intrinsicCopyOverloadedName2 moduleRef (fromIntegral intrinsicID) argumentPtr (fromIntegral argumentSize) sizePtr
+                size <- peek sizePtr
+                text <- Text.Foreign.peekCStringLen (cstring, fromIntegral size)
+
+                Raw.disposeMessage cstring
+                pure text
+
+wrapDirectly 'Missing.intrinsicIsOverloaded "Obtain if the intrinsic identified by the given ID is overloaded."
+
+wrapDirectly 'Missing.getFunctionCallConv "Obtain the calling function of a function."
+
+wrapDirectly 'Missing.getGC "Obtain the name of the garbage collector to use during code generation."
+
+wrapDirectly 'Missing.setGC "Define the garbage collector to use during code generation. "
+
+{- | Gets the prefix data associated with a function.
+
+Only valid on functions.
+See https://llvm.org/docs/LangRef.html#prefix-data
+-}
+getPrefixData :: Value -> IO (Maybe Value)
+getPrefixData (MkValue function) =
+    fmap Raw.deconsBool (Missing.hasPrefixData function) >>= \case
+        False -> pure Nothing
+        True -> do
+            data_ <- Missing.getPrefixData function
+            pure (Just (MkValue data_))
+
+wrapDirectly 'Missing.setPrefixData "Sets the prefix data for the function."
+
+getPrologueData :: Value -> IO (Maybe Value)
+getPrologueData (MkValue function) =
+    fmap Raw.deconsBool (Missing.hasPrologueData function) >>= \case
+        False -> pure Nothing
+        True -> do
+            data_ <- Missing.getPrologueData function
+            pure (Just (MkValue data_))
+
+wrapDirectly 'Missing.setPrologueData "Sets the prologue data for the function.\n\nOnly valid on functions. See https://llvm.org/docs/LangRef.html#prologue-data"
+
+wrapDirectly 'Missing.getAttributeCountAtIndex ""
+
+getAttributesAtIndex :: Value -> Int -> IO (Storable.Vector Attribute)
+getAttributesAtIndex (MkValue function) attributeIndex = do
+    count <- Missing.getAttributeCountAtIndex function (fromIntegral attributeIndex)
+    vector <- Storable.Mutable.new (fromIntegral count)
+
+    Storable.Mutable.unsafeWith vector \pointer -> Missing.getAttributesAtIndex function (fromIntegral attributeIndex) (coerce pointer)
+
+    Storable.unsafeFreeze vector
+
+wrapDirectly 'Missing.getEnumAttributeAtIndex ""
+
+wrapDirectly 'Missing.getStringAttributeAtIndex ""
+
+wrapDirectly 'Missing.removeEnumAttributeAtIndex ""
+
+wrapDirectly 'Missing.removeStringAttributeAtIndex ""
+
+wrapDirectly 'Missing.addTargetDependentFunctionAttr ""

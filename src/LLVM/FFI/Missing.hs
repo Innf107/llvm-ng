@@ -22,6 +22,7 @@ import LLVM.Internal.Wrappers (
     MetaDataRef,
     OperandBundleRef,
     OwnedOperandBundleRef,
+    RawCallingConvention,
     RawDLLStorageClass,
     RawFastMathFlags,
     RawGEPNoWrapFlags,
@@ -32,7 +33,7 @@ import LLVM.Internal.Wrappers (
     RawUnnamedAddr,
     RawVisibility,
     UnownedCString,
-    ValueMetadataEntriesRef, RawCallingConvention,
+    ValueMetadataEntriesRef,
  )
 
 foreign import capi unsafe "llvm-c/Core.h LLVMPrintModuleToFile"
@@ -758,3 +759,83 @@ foreign import capi unsafe "llvm-c/Core.h LLVMGetCallBrIndirectDest"
 foreign import capi unsafe "llvm-c/Core.h LLVMSetFunctionCallConv"
     setFunctionCallConv :: Raw.ValueRef -> RawCallingConvention -> IO ()
 
+foreign import capi unsafe "llvm-c/Core.h LLVMHasPersonalityFn"
+    hasPersonalityFn :: Raw.ValueRef -> IO Raw.Bool
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetPersonalityFn"
+    getPersonalityFn :: Raw.ValueRef -> IO Raw.ValueRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMSetPersonalityFn"
+    setPersonalityFn :: Raw.ValueRef -> Raw.ValueRef -> IO ()
+
+foreign import capi unsafe "llvm-c/Core.h LLVMLookupIntrinsicID"
+    lookupIntrinsicID :: CStringLenAsText -> CSize -> IO CUInt
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetIntrinsicID"
+    getIntrinsicID :: Raw.ValueRef -> IO CUInt
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetIntrinsicDeclaration"
+    getIntrinsicDeclaration :: Raw.ModuleRef -> CUInt -> Ptr Raw.TypeRef -> CSize -> IO Raw.ValueRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMIntrinsicGetType"
+    intrinsicGetType :: Raw.ContextRef -> CUInt -> Ptr Raw.TypeRef -> CSize -> IO Raw.TypeRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMIntrinsicGetName"
+    intrinsicGetName :: CUInt -> Ptr CSize -> IO CString
+
+foreign import capi unsafe "llvm-c/Core.h LLVMIntrinsicCopyOverloadedName2"
+    intrinsicCopyOverloadedName2 :: Raw.ModuleRef -> CUInt -> Ptr Raw.TypeRef -> CSize -> Ptr CSize -> IO CString
+
+foreign import capi unsafe "llvm-c/Core.h LLVMIntrinsicIsOverloaded"
+    intrinsicIsOverloaded :: CUInt -> IO Raw.Bool
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetFunctionCallConv"
+    getFunctionCallConv :: Raw.ValueRef -> IO RawCallingConvention
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetGC"
+    getGC :: Raw.ValueRef -> IO UnownedCString
+
+foreign import capi unsafe "llvm-c/Core.h LLVMSetGC"
+    setGC :: Raw.ValueRef -> CString -> IO ()
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetPrefixData"
+    getPrefixData :: Raw.ValueRef -> IO Raw.ValueRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMSetPrefixData"
+    setPrefixData :: Raw.ValueRef -> Raw.ValueRef -> IO ()
+
+foreign import capi unsafe "llvm-c/Core.h LLVMHasPrefixData"
+    hasPrefixData :: Raw.ValueRef -> IO Raw.Bool
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetPrologueData"
+    getPrologueData :: Raw.ValueRef -> IO Raw.ValueRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMSetPrologueData"
+    setPrologueData :: Raw.ValueRef -> Raw.ValueRef -> IO ()
+
+foreign import capi unsafe "llvm-c/Core.h LLVMHasPrologueData"
+    hasPrologueData :: Raw.ValueRef -> IO Raw.Bool
+
+foreign import capi unsafe "llvm-c/Core.h LLVMAddAttributeAtIndex"
+    addAttributeAtIndex :: Raw.ValueRef -> CUInt -> Raw.AttributeRef -> IO ()
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetAttributeCountAtIndex"
+    getAttributeCountAtIndex :: Raw.ValueRef -> CUInt -> IO CUInt
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetAttributesAtIndex"
+    getAttributesAtIndex :: Raw.ValueRef -> CUInt -> Ptr Raw.AttributeRef -> IO ()
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetEnumAttributeAtIndex"
+    getEnumAttributeAtIndex :: Raw.ValueRef -> CUInt -> Raw.AttributeKind -> IO Raw.AttributeRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetStringAttributeAtIndex"
+    getStringAttributeAtIndex :: Raw.ValueRef -> CUInt -> CStringLenAsText -> CUInt -> IO Raw.AttributeRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMRemoveEnumAttributeAtIndex"
+    removeEnumAttributeAtIndex :: Raw.ValueRef -> CUInt -> Raw.AttributeKind -> IO ()
+
+foreign import capi unsafe "llvm-c/Core.h LLVMRemoveStringAttributeAtIndex"
+    removeStringAttributeAtIndex :: Raw.ValueRef -> CUInt -> CStringLenAsText -> CUInt -> IO ()
+
+foreign import capi unsafe "llvm-c/Core.h LLVMAddTargetDependentFunctionAttr"
+    addTargetDependentFunctionAttr :: Raw.ValueRef -> CString -> CString -> IO () 
