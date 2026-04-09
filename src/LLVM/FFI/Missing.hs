@@ -637,10 +637,10 @@ foreign import capi unsafe "llvm-c/Core.h LLVMGlobalGetValueType"
     globalGetValueType :: GlobalRef -> IO Raw.TypeRef
 
 foreign import capi unsafe "llvm-c/Core.h LLVMGetAlignment"
-    getAlignment :: GlobalRef -> IO CUInt
+    getAlignment :: Raw.ValueRef -> IO CUInt
 
 foreign import capi unsafe "llvm-c/Core.h LLVMSetAlignment"
-    setAlignment :: GlobalRef -> CUInt -> IO ()
+    setAlignment :: Raw.ValueRef -> CUInt -> IO ()
 
 foreign import capi unsafe "llvm-c/Core.h LLVMGlobalSetMetadata"
     globalSetMetadata :: GlobalRef -> CUInt -> MetaDataRef -> IO ()
