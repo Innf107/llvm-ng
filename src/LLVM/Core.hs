@@ -14,6 +14,9 @@ module LLVM.Core (
     getParam,
     setIsInBounds,
     isInBounds,
+    Target.initializeAllTargets,
+    Target.initializeAllTargetInfos,
+    Target.initializeNativeTarget,
 
     -- * LLVM Types
     functionType,
@@ -284,6 +287,7 @@ module LLVM.Core (
     TailCallKind (..),
     OperandBundle,
     CallingConvention,
+    TargetData,
 
     -- * Debugging
     dumpModule,
@@ -336,9 +340,10 @@ import LLVM.Internal.Wrappers (
     withContext,
     withModule,
     withTypeArray,
-    withUnsignedArray,
+    withUnsignedArray, TargetData,
  )
 import LLVM.Internal.Wrappers qualified as Wrappers
+import LLVM.Target qualified as Target
 import System.IO.Unsafe (unsafePerformIO)
 import System.OsPath (OsPath)
 import System.OsPath qualified as OsPath

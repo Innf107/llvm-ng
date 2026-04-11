@@ -9,8 +9,9 @@ module LLVM.FFI.Missing where
 
 import Data.Word (Word64)
 import Foreign.C (CInt (..), CSize (..), CString, CUInt (..))
-import Foreign.Ptr (Ptr)
+import Foreign.Ptr (FunPtr, Ptr)
 import LLVM.FFI.Core qualified as Raw
+import LLVM.FFI.Target qualified as Raw
 import LLVM.Internal.Wrappers (
     CStringLenAsByteString,
     CStringLenAsText,
@@ -838,4 +839,47 @@ foreign import capi unsafe "llvm-c/Core.h LLVMRemoveStringAttributeAtIndex"
     removeStringAttributeAtIndex :: Raw.ValueRef -> CUInt -> CStringLenAsText -> CUInt -> IO ()
 
 foreign import capi unsafe "llvm-c/Core.h LLVMAddTargetDependentFunctionAttr"
-    addTargetDependentFunctionAttr :: Raw.ValueRef -> CString -> CString -> IO () 
+    addTargetDependentFunctionAttr :: Raw.ValueRef -> CString -> CString -> IO ()
+
+foreign import capi unsafe "llvm-c/Target.h LLVMInitializeAllTargetInfos"
+    initializeAllTargetInfos :: IO ()
+
+foreign import capi unsafe "llvm-c/Target.h LLVMInitializeAllTargets"
+    initializeAllTargets :: IO ()
+
+foreign import capi unsafe "llvm-c/Target.h LLVMInitializeAllTargetMCs"
+    initializeAllTargetMCs :: IO ()
+
+foreign import capi unsafe "llvm-c/Target.h LLVMInitializeAllAsmPrinters"
+    initializeAllAsmPrinters :: IO ()
+
+foreign import capi unsafe "llvm-c/Target.h LLVMInitializeAllAsmParsers"
+    initializeAllAsmParsers :: IO ()
+
+foreign import capi unsafe "llvm-c/Target.h LLVMInitializeAllDisassemblers"
+    initializeAllDisassemblers :: IO ()
+
+foreign import capi unsafe "llvm-c/Target.h LLVMInitializeNativeTarget"
+    initializeNativeTarget :: IO Raw.Bool
+
+foreign import capi unsafe "llvm-c/Target.h LLVMInitializeNativeAsmParser"
+    initializeNativeAsmParser :: IO Raw.Bool
+
+foreign import capi unsafe "llvm-c/Target.h LLVMInitializeNativeAsmPrinter"
+    initializeNativeAsmPrinter :: IO ()
+
+foreign import capi unsafe "llvm-c/Target.h LLVMInitializeNativeDisassembler"
+    initializeNativeDisassembler :: IO ()
+
+foreign import capi unsafe "llvm-c/Target.h LLVMGetModuleDataLayout"
+    getModuleDataLayout :: Raw.ModuleRef -> IO Raw.TargetDataRef
+
+foreign import capi unsafe "llvm-c/Target.h LLVMSetModuleDataLayout"
+    setModuleDataLayout :: Raw.ModuleRef -> Raw.TargetDataRef -> IO ()
+
+foreign import capi unsafe "llvm-c/Target.h LLVMCreateTargetData"
+    createTargetData :: CString -> IO Raw.TargetDataRef
+
+foreign import capi unsafe "llvm-c/Target.h &LLVMDisposeTargetData"
+    disposeTargetData :: FunPtr (Raw.TargetDataRef -> IO ())
+

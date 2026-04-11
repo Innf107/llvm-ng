@@ -27,6 +27,7 @@ import GHC.Stack (HasCallStack)
 import LLVM.FFI.Core qualified as Raw
 import LLVM.Internal.Wrappers (CStringLenAsByteString, CStringLenAsText)
 import LLVM.Internal.Wrappers qualified as Wrappers
+import qualified LLVM.FFI.Target as Raw
 
 wrapDirectly :: Name -> String -> TH.DecsQ
 wrapDirectly rawFunctionName docString = wrapAs (TH.nameBase rawFunctionName) rawFunctionName docString
@@ -147,6 +148,7 @@ wrapParameter rawType varName = case rawType of
         | typeName == ''Raw.TypeRef -> wrapNewtype ''Wrappers.Type 'Wrappers.MkType
         | typeName == ''Raw.AttributeKind -> wrapIdentity typeName
         | typeName == ''Raw.AttributeRef -> wrapNewtype ''Wrappers.Attribute 'Wrappers.MkAttribute
+        | typeName == ''Raw.TargetDataRef -> wrapWith ''Wrappers.TargetData 'Wrappers.withTargetData
         | typeName == ''Wrappers.FunctionTypeRef -> wrapNewtype ''Wrappers.FunctionType 'Wrappers.MkFunctionType
         | typeName == ''Wrappers.GlobalRef -> wrapNewtype ''Wrappers.Global 'Wrappers.MkGlobal
         | typeName == ''Wrappers.RawIntPredicate -> wrapFunction ''Wrappers.IntPredicate 'Wrappers.unwrapIntPredicate

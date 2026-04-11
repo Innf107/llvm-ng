@@ -14,7 +14,7 @@ let isContainedInAny(function, files) = match files {
 }
 
 List.for(functions, \function -> {
-    if not isContainedInAny(function, ["src/LLVM/Core.hs", "src/LLVM/InstructionBuilder.hs", "src/LLVM/Core/Context.hs", "src/LLVM/Core/Phi.hs"]) then {
+    if not isContainedInAny(function, ["src/LLVM/Core.hs", "src/LLVM/InstructionBuilder.hs", "src/LLVM/Core/Context.hs", "src/LLVM/Core/Phi.hs", "src/LLVM/Target.hs"]) then {
         print("Unused FFI binding for ${function}")
     } else {}
 })

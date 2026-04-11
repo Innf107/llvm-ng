@@ -34,6 +34,7 @@ library
       LLVM.Internal.Error
       LLVM.Internal.TH
       LLVM.Internal.Wrappers
+      LLVM.Target
   other-modules:
       Paths_llvm_ng
   autogen-modules:

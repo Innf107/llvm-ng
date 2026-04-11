@@ -72,7 +72,9 @@ module LLVM.Internal.Wrappers (
     wrapOwnedOperandBundle,
     withOperandBundleArray,
     RawCallingConvention,
-    CallingConvention(..),
+    CallingConvention (..),
+    TargetData (..),
+    withTargetData,
 ) where
 
 import Data.Coerce (coerce)
@@ -87,6 +89,7 @@ import Foreign.ForeignPtr (FinalizerPtr)
 import Foreign.Ptr (Ptr)
 import Foreign.Storable (peek)
 import LLVM.FFI.Core qualified as Raw
+import LLVM.FFI.Target qualified as Raw
 
 newtype Context = MkContext (ForeignPtr Raw.Context)
 
@@ -465,4 +468,7 @@ type RawCallingConvention = CUInt
 
 newtype CallingConvention = MkCallingConvention CUInt
 
+withTargetData :: TargetData -> (Raw.TargetDataRef -> IO a) -> IO a
+withTargetData (MkTargetData foreignPtr) cont = withForeignPtr foreignPtr cont
 
+newtype TargetData = MkTargetData (ForeignPtr Raw.TargetData)
