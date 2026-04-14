@@ -453,7 +453,7 @@ cEnum
 
 cEnum
     "CodeModel"
-    [ "LLVMCodeModelDefault"
+    [ "CodeModelDefault"
     , "CodeModelJITDefault"
     , "CodeModelTiny"
     , "CodeModelSmall"

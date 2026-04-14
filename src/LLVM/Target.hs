@@ -6,6 +6,7 @@ module LLVM.Target (
     TargetData (..),
     Target (..),
     CodeGenOptLevel (..),
+    CodeGenFileType(..),
 ) where
 
 import Control.Monad.IO.Class (MonadIO (..))
