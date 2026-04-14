@@ -287,7 +287,6 @@ module LLVM.Core (
     TailCallKind (..),
     OperandBundle,
     CallingConvention,
-    TargetData,
 
     -- * Debugging
     dumpModule,

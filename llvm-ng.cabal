@@ -33,6 +33,7 @@ library
       LLVM.InstructionBuilder
       LLVM.Internal.Error
       LLVM.Internal.TH
+      LLVM.Internal.TH.Util
       LLVM.Internal.Wrappers
       LLVM.Target
   other-modules:

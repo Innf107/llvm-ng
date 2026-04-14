@@ -1,81 +1,8 @@
 {-# LANGUAGE CApiFFI #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# OPTIONS_GHC -Wno-missing-export-lists #-}
 
-module LLVM.Internal.Wrappers (
-    Context (..),
-    withContext,
-    Module (..),
-    withModule,
-    Builder (..),
-    withBuilder,
-    BasicBlock (..),
-    Value (..),
-    withValueArray,
-    Type (..),
-    withTypeArray,
-    withUnsignedArray,
-    FunctionType (..),
-    OpaqueFunctionType,
-    FunctionTypeRef,
-    functionTypeAsType,
-    unsafeTypeAsFunctionType,
-    Global (..),
-    OpaqueGlobal,
-    GlobalRef,
-    globalAsValue,
-    unsafeValueAsGlobal,
-    OpaqueMetaData,
-    MetaDataRef,
-    MetaData (..),
-    RawFastMathFlags,
-    FastMathFlags (..),
-    OpaqueOperandBundle,
-    OperandBundleRef,
-    OperandBundle (..),
-    OpaqueDiagnosticInfo,
-    DiagnosticInfoRef,
-    DiagnosticInfo (..),
-    Attribute (..),
-    unsafeVectorFromCArray,
-    GEPNoWrapFlags (..),
-    RawGEPNoWrapFlags,
-    RawIntPredicate,
-    IntPredicate (..),
-    unwrapIntPredicate,
-    RawRealPredicate,
-    RealPredicate (..),
-    unwrapRealPredicate,
-    wrapMessage,
-    CStringLenAsByteString,
-    RawLinkage,
-    wrapLinkage,
-    unwrapLinkage,
-    RawVisibility,
-    wrapVisibility,
-    unwrapVisibility,
-    RawDLLStorageClass,
-    DLLStorageClass (..),
-    wrapDLLStorageClass,
-    unwrapDLLStorageClass,
-    RawUnnamedAddr,
-    UnnamedAddr (..),
-    wrapUnnamedAddr,
-    unwrapUnnamedAddr,
-    RawTailCallKind,
-    TailCallKind (..),
-    wrapTailCallKind,
-    unwrapTailCallKind,
-    ValueMetadataEntriesRef,
-    UnownedCString,
-    MessageCString,
-    CStringLenAsText,
-    OwnedOperandBundleRef,
-    wrapOwnedOperandBundle,
-    withOperandBundleArray,
-    RawCallingConvention,
-    CallingConvention (..),
-    TargetData (..),
-    withTargetData,
-) where
+module LLVM.Internal.Wrappers where
 
 import Data.Coerce (coerce)
 import Data.Text (Text)
@@ -83,13 +10,16 @@ import Data.Text.Foreign qualified as Text.Foreign
 import Data.Vector.Storable qualified as Storable
 import Data.Vector.Strict qualified as Strict
 import Foreign (ForeignPtr, Storable (sizeOf), newForeignPtr, plusPtr, withForeignPtr)
-import Foreign.C (CInt, CSize, CUInt)
+import Foreign.C (CInt, CSize, CUInt, withCString)
 import Foreign.C.String (CString)
 import Foreign.ForeignPtr (FinalizerPtr)
 import Foreign.Ptr (Ptr)
 import Foreign.Storable (peek)
 import LLVM.FFI.Core qualified as Raw
 import LLVM.FFI.Target qualified as Raw
+import LLVM.Internal.TH.Util (cEnum, foreignPointerWrapper)
+import System.OsPath (OsPath)
+import System.OsPath qualified as OsPath
 
 newtype Context = MkContext (ForeignPtr Raw.Context)
 
@@ -468,7 +398,96 @@ type RawCallingConvention = CUInt
 
 newtype CallingConvention = MkCallingConvention CUInt
 
-withTargetData :: TargetData -> (Raw.TargetDataRef -> IO a) -> IO a
-withTargetData (MkTargetData foreignPtr) cont = withForeignPtr foreignPtr cont
+foreignPointerWrapper "TargetData"
 
-newtype TargetData = MkTargetData (ForeignPtr Raw.TargetData)
+newtype TargetLibraryInfo = MkTargetLibraryInfo Raw.TargetLibraryInfoRef
+
+newtype PassManager = MkPassManager Raw.PassManagerRef
+
+type RawByteOrdering = CUInt
+
+data ByteOrdering
+    = BigEndian
+    | LittleEndian
+
+wrapByteOrdering :: RawByteOrdering -> ByteOrdering
+wrapByteOrdering = \case
+    0 -> BigEndian
+    1 -> LittleEndian
+    n -> error $ "wrapByteOrdering: Invalid byte ordering value: " <> show n
+
+unwrapByteOrdering :: ByteOrdering -> RawByteOrdering
+unwrapByteOrdering = \case
+    BigEndian -> 0
+    LittleEndian -> 1
+
+data OpaqueTarget
+
+type TargetRef = Ptr OpaqueTarget
+
+newtype Target = MkTarget TargetRef
+
+-- | Type alias that instructs the TH machinery to wrap the result in an option and check whether it is null.
+type MightBeNull a = a
+
+foreignPointerWrapper "TargetMachineOptions"
+
+cEnum
+    "CodeGenOptLevel"
+    [ "CodeGenLevelNone"
+    , "CodeGenLevelLess"
+    , "CodeGenLevelDefault"
+    , "CodeGenLevelAggressive"
+    ]
+
+cEnum
+    "RelocMode"
+    [ "RelocDefault"
+    , "RelocStatic"
+    , "RelocPIC"
+    , "RelocDynamicNoPic"
+    , "RelocROPI"
+    , "RelocRWPI"
+    , "RelocROPI_RWPI"
+    ]
+
+cEnum
+    "CodeModel"
+    [ "LLVMCodeModelDefault"
+    , "CodeModelJITDefault"
+    , "CodeModelTiny"
+    , "CodeModelSmall"
+    , "CodeModelKernel"
+    , "CodeModelMedium"
+    , "CodeModelLarge"
+    ]
+
+foreignPointerWrapper "TargetMachine"
+
+cEnum
+    "GlobalISELAbortMode"
+    [ "GlobalISelAbortEnable"
+    , "GlobalISelAbortDisable"
+    , "GlobalISelAbortDisableWithDiag"
+    ]
+
+type CStringAsOSPath = CString
+
+cEnum
+    "CodeGenFileType"
+    [ "AssemblyFile"
+    , "ObjectFile"
+    ]
+
+foreignPointerWrapper "MemoryBuffer"
+
+-- | Type synonym that tells the TH machinery to try to wrap the argument in a foreign pointer with the given dispose function
+type AsForeignPtrWith disposeFunction a = a
+
+withOsPath :: OsPath -> (CString -> IO a) -> IO a
+withOsPath path cont = do
+    filePathString <- OsPath.decodeFS path
+    withCString filePathString \filePathCString -> cont filePathCString
+
+-- | Type synonym that tells the TH machinery to interpret this as a pointer to an error message and to emit a call to 'LLVM.Internal.Error.withErrorMessage'
+type ErrorMessageCStringPtr = Ptr CString

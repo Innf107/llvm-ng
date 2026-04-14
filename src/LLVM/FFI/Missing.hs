@@ -8,31 +8,52 @@
 module LLVM.FFI.Missing where
 
 import Data.Word (Word64)
+import Foreign (FinalizerPtr)
 import Foreign.C (CInt (..), CSize (..), CString, CUInt (..))
-import Foreign.Ptr (FunPtr, Ptr)
+import Foreign.Ptr (Ptr)
 import LLVM.FFI.Core qualified as Raw
 import LLVM.FFI.Target qualified as Raw
 import LLVM.Internal.Wrappers (
+    AsForeignPtrWith,
+    CStringAsOSPath,
     CStringLenAsByteString,
     CStringLenAsText,
     DiagnosticInfoRef,
     FunctionTypeRef,
     GlobalRef,
     IntPredicate,
+    MemoryBufferRef,
     MessageCString,
     MetaDataRef,
+    MightBeNull,
+    OpaqueMemoryBuffer,
+    OpaqueTargetData,
+    OpaqueTargetMachine,
+    OpaqueTargetMachineOptions,
     OperandBundleRef,
     OwnedOperandBundleRef,
+    PassManager,
+    RawByteOrdering,
     RawCallingConvention,
+    RawCodeGenFileType,
+    RawCodeGenOptLevel,
+    RawCodeModel,
     RawDLLStorageClass,
     RawFastMathFlags,
     RawGEPNoWrapFlags,
+    RawGlobalISELAbortMode,
     RawIntPredicate,
     RawLinkage,
     RawRealPredicate,
+    RawRelocMode,
     RawTailCallKind,
     RawUnnamedAddr,
     RawVisibility,
+    TargetDataRef,
+    TargetLibraryInfo,
+    TargetMachineOptionsRef,
+    TargetMachineRef,
+    TargetRef,
     UnownedCString,
     ValueMetadataEntriesRef,
  )
@@ -872,14 +893,199 @@ foreign import capi unsafe "llvm-c/Target.h LLVMInitializeNativeDisassembler"
     initializeNativeDisassembler :: IO ()
 
 foreign import capi unsafe "llvm-c/Target.h LLVMGetModuleDataLayout"
-    getModuleDataLayout :: Raw.ModuleRef -> IO Raw.TargetDataRef
+    getModuleDataLayout :: Raw.ModuleRef -> IO TargetDataRef
 
 foreign import capi unsafe "llvm-c/Target.h LLVMSetModuleDataLayout"
-    setModuleDataLayout :: Raw.ModuleRef -> Raw.TargetDataRef -> IO ()
+    setModuleDataLayout :: Raw.ModuleRef -> TargetDataRef -> IO ()
 
 foreign import capi unsafe "llvm-c/Target.h LLVMCreateTargetData"
-    createTargetData :: CString -> IO Raw.TargetDataRef
+    createTargetData :: CString -> IO TargetDataRef
 
 foreign import capi unsafe "llvm-c/Target.h &LLVMDisposeTargetData"
-    disposeTargetData :: FunPtr (Raw.TargetDataRef -> IO ())
+    disposeTargetData :: FinalizerPtr OpaqueTargetData
 
+foreign import capi unsafe "llvm-c/Target.h LLVMAddTargetLibraryInfo"
+    addTargetLibraryInfo :: Raw.TargetLibraryInfoRef -> Raw.PassManagerRef -> IO ()
+
+foreign import capi unsafe "llvm-c/Target.h LLVMCopyStringRepOfTargetData"
+    copyStringRepOfTargetData :: TargetDataRef -> IO MessageCString
+
+foreign import capi unsafe "llvm-c/Target.h LLVMByteOrder"
+    byteOrder :: TargetDataRef -> IO RawByteOrdering
+
+foreign import capi unsafe "llvm-c/Target.h LLVMPointerSize"
+    pointerSize :: TargetDataRef -> IO CUInt
+
+foreign import capi unsafe "llvm-c/Target.h LLVMPointerSizeForAS"
+    pointerSizeForAS :: TargetDataRef -> CUInt -> IO CUInt
+
+foreign import capi unsafe "llvm-c/Target.h LLVMIntPtrTypeInContext"
+    intPtrTypeInContext :: Raw.ContextRef -> TargetDataRef -> IO Raw.TypeRef
+
+foreign import capi unsafe "llvm-c/Target.h LLVMIntPtrTypeForASInContext"
+    intPtrTypeForASInContext :: Raw.ContextRef -> TargetDataRef -> CUInt -> IO Raw.TypeRef
+
+foreign import capi unsafe "llvm-c/Target.h LLVMSizeOfTypeInBits"
+    sizeOfTypeInBits :: TargetDataRef -> Raw.TypeRef -> IO Word64
+
+foreign import capi unsafe "llvm-c/Target.h LLVMStoreSizeOfType"
+    storeSizeOfType :: TargetDataRef -> Raw.TypeRef -> IO Word64
+
+foreign import capi unsafe "llvm-c/Target.h LLVMABISizeOfType"
+    abiSizeOfType :: TargetDataRef -> Raw.TypeRef -> IO Word64
+
+foreign import capi unsafe "llvm-c/Target.h LLVMABIAlignmentOfType"
+    abiAlignmentOfType :: TargetDataRef -> Raw.TypeRef -> IO CUInt
+
+foreign import capi unsafe "llvm-c/Target.h LLVMCallFrameAlignmentOfType"
+    callFrameAlignmentOfType :: TargetDataRef -> Raw.TypeRef -> IO CUInt
+
+foreign import capi unsafe "llvm-c/Target.h LLVMPreferredAlignmentOfType"
+    preferredAlignmentOfType :: TargetDataRef -> Raw.TypeRef -> IO CUInt
+
+foreign import capi unsafe "llvm-c/Target.h LLVMPreferredAlignmentOfGlobal"
+    preferredAlignmentOfGlobal :: TargetDataRef -> GlobalRef -> IO CUInt
+
+foreign import capi unsafe "llvm-c/Target.h LLVMElementAtOffset"
+    elementAtOffset :: TargetDataRef -> Raw.TypeRef -> Word64 -> IO CUInt
+
+foreign import capi unsafe "llvm-c/Target.h LLVMOffsetOfElement"
+    llvmOffsetOfElement :: TargetDataRef -> Raw.TypeRef -> CUInt -> IO Word64
+
+foreign import capi unsafe "llvm-c/TargetMachine.h LLVMGetFirstTarget"
+    getFirstTarget :: IO TargetRef
+
+foreign import capi unsafe "llvm-c/TargetMachine.h LLVMGetNextTarget"
+    getNextTarget :: TargetRef -> IO (MightBeNull TargetRef)
+
+foreign import capi unsafe "llvm-c/Target.h LLVMGetTargetFromName"
+    getTargetFromName :: CString -> IO (MightBeNull TargetRef)
+
+foreign import capi unsafe "llvm-c/Target.h LLVMGetTargetFromTriple"
+    getTargetFromTriple :: CString -> Ptr TargetRef -> Ptr CString -> IO Raw.Bool
+
+foreign import capi unsafe "llvm-c/Target.h LLVMGetTargetName"
+    getTargetName :: TargetRef -> IO UnownedCString
+
+foreign import capi unsafe "llvm-c/Target.h LLVMGetTargetDescription"
+    getTargetDescription :: TargetRef -> IO UnownedCString
+
+foreign import capi unsafe "llvm-c/Target.h LLVMTargetHasJIT"
+    targetHasJIT :: TargetRef -> IO Raw.Bool
+
+foreign import capi unsafe "llvm-c/Target.h LLVMTargetHasTargetMachine"
+    targetHasTargetMachine :: TargetRef -> IO Raw.Bool
+
+foreign import capi unsafe "llvm-c/Target.h LLVMTargetHasAsmBackend"
+    targetHasAsmBackend :: TargetRef -> IO Raw.Bool
+
+foreign import capi unsafe "llvm-c/TargetMachine.h LLVMCreateTargetMachineOptions"
+    createTargetMachineOptions :: IO (AsForeignPtrWith "disposeTargetMachineOptions" TargetMachineOptionsRef)
+
+foreign import capi unsafe "llvm-c/TargetMachine.h &LLVMDisposeTargetMachineOptions"
+    disposeTargetMachineOptions :: FinalizerPtr OpaqueTargetMachineOptions
+
+foreign import capi unsafe "llvm-c/TargetMachine.h LLVMTargetMachineOptionsSetCPU"
+    targetMachineOptionsSetCPU :: TargetMachineOptionsRef -> CString -> IO ()
+
+foreign import capi unsafe "llvm-c/TargetMachine.h LLVMTargetMachineOptionsSetFeatures"
+    targetMachineOptionsSetFeatures :: TargetMachineOptionsRef -> CString -> IO ()
+
+foreign import capi unsafe "llvm-c/TargetMachine.h LLVMTargetMachineOptionsSetABI"
+    targetMachineOptionsSetABI :: TargetMachineOptionsRef -> CString -> IO ()
+
+foreign import capi unsafe "llvm-c/TargetMachine.h LLVMTargetMachineOptionsSetCodeGenOptLevel"
+    targetMachineSetCodeGenOptLevel :: TargetMachineOptionsRef -> RawCodeGenOptLevel -> IO ()
+
+foreign import capi unsafe "llvm-c/TargetMachine.h LLVMTargetMachineOptionsSetRelocMode"
+    targetMachineSetRelocMode :: TargetMachineOptionsRef -> RawRelocMode -> IO ()
+
+foreign import capi unsafe "llvm-c/TargetMachine.h LLVMTargetMachineOptionsSetCodeModel"
+    targetMachineSetCodeModel :: TargetMachineOptionsRef -> RawCodeModel -> IO ()
+
+foreign import capi unsafe "llvm-c/TargetMachine.h LLVMCreateTargetMachineWithOptions"
+    createTargetMachineWithOptions ::
+        TargetRef ->
+        CString ->
+        TargetMachineOptionsRef ->
+        IO (AsForeignPtrWith "disposeTargetMachine" TargetMachineRef)
+
+foreign import capi unsafe "llvm-c/TargetMachine.h LLVMCreateTargetMachine"
+    createTargetMachine ::
+        TargetRef ->
+        CString ->
+        CString ->
+        CString ->
+        RawCodeGenOptLevel ->
+        RawRelocMode ->
+        RawCodeModel ->
+        IO (AsForeignPtrWith "disposeTargetMachine" TargetMachineRef)
+
+foreign import capi unsafe "llvm-c/TargetMachine.h &LLVMDisposeTargetMachine"
+    disposeTargetMachine :: FinalizerPtr OpaqueTargetMachine
+
+foreign import capi unsafe "llvm-c/TargetMachine.h LLVMGetTargetMachineTarget"
+    getTargetMachineTarget :: TargetMachineRef -> IO TargetRef
+
+foreign import capi unsafe "llvm-c/TargetMachine.h LLVMGetTargetMachineTriple"
+    getTargetMachineTriple :: TargetMachineRef -> IO MessageCString
+
+foreign import capi unsafe "llvm-c/TargetMachine.h LLVMGetTargetMachineCPU"
+    getTargetMachineCPU :: TargetMachineRef -> IO MessageCString
+
+foreign import capi unsafe "llvm-c/TargetMachine.h LLVMGetTargetMachineFeatureString"
+    getTargetMachineFeatureString :: TargetMachineRef -> IO MessageCString
+
+foreign import capi unsafe "llvm-c/TargetMachine.h LLVMCreateTargetDataLayout"
+    createTargetDataLayout :: TargetMachineRef -> IO (AsForeignPtrWith "disposeTargetData" TargetDataRef)
+
+foreign import capi unsafe "llvm-c/TargetMachine.h LLVMSetTargetMachineAsmVerbosity"
+    setTargetMachineAsmVerbosity :: TargetMachineRef -> Raw.Bool -> IO ()
+
+foreign import capi unsafe "llvm-c/TargetMachine.h LLVMSetTargetMachineFastISel"
+    setTargetMachineFastISel :: TargetMachineRef -> Raw.Bool -> IO ()
+
+foreign import capi unsafe "llvm-c/TargetMachine.h LLVMSetTargetMachineGlobalISel"
+    setTargetMachineGlobalISel :: TargetMachineRef -> Raw.Bool -> IO ()
+
+foreign import capi unsafe "llvm-c/TargetMachine.h LLVMSetTargetMachineGlobalISelAbort"
+    setTargetMachineGlobalISelAbort :: TargetMachineRef -> RawGlobalISELAbortMode -> IO ()
+
+foreign import capi unsafe "llvm-c/TargetMachine.h LLVMSetTargetMachineMachineOutliner"
+    setTargetMachineMachineOutliner :: TargetMachineRef -> Raw.Bool -> IO ()
+
+foreign import capi unsafe "llvm-c/TargetMachine.h LLVMTargetMachineEmitToFile"
+    targetMachineEmitToFile ::
+        TargetMachineRef ->
+        Raw.ModuleRef ->
+        CStringAsOSPath ->
+        RawCodeGenFileType ->
+        Ptr CString ->
+        IO Raw.Bool
+
+foreign import capi unsafe "llvm-c/TargetMachine.h LLVMTargetMachineEmitToMemoryBuffer"
+    targetMachineEmitToMemoryBuffer ::
+        TargetMachineRef ->
+        Raw.ModuleRef ->
+        RawCodeGenFileType ->
+        Ptr CString ->
+        MemoryBufferRef ->
+        IO Raw.Bool
+
+foreign import capi unsafe "llvm-c/Core.h &LLVMDisposeMemoryBuffer"
+    disposeMemoryBuffer :: FinalizerPtr OpaqueMemoryBuffer
+
+foreign import capi unsafe "llvm-c/TargetMachine.h LLVMGetDefaultTargetTriple"
+    getDefaultTargetTriple :: IO MessageCString
+
+foreign import capi unsafe "llvm-c/TargetMachine.h LLVMNormalizeTargetTriple"
+    normalizeTargetTriple :: CString -> IO MessageCString
+
+foreign import capi unsafe "llvm-c/TargetMachine.h LLVMGetHostCPUName"
+    getHostCPUName :: IO MessageCString
+
+foreign import capi unsafe "llvm-c/TargetMachine.h LLVMGetHostCPUFeatures"
+    getHostCPUFeatures :: IO MessageCString
+
+foreign import capi unsafe "llvm-c/TargetMachine.h LLVMAddAnalysisPasses"
+    addAnalysisPasses :: TargetMachineRef -> Raw.PassManagerRef -> IO ()
