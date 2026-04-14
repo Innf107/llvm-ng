@@ -76,12 +76,13 @@ wrapDirectly 'Missing.getNextTarget "Returns the next 'Target' given a previous 
 wrapDirectly 'Missing.getTargetFromName "Finds the target corresponding to the given name"
 
 -- | Finds the target corresponding to the given triple.
-getTargetFromTriple :: Text -> IO Target
+getTargetFromTriple :: (MonadIO io) => Text -> io Target
 getTargetFromTriple triple =
-    Text.Foreign.withCString triple \tripleCStr -> do
-        Foreign.alloca \targetRef -> do
-            withErrorMessage (Just $ "getTargetFromTriple \"" <> triple <> "\"") $ Missing.getTargetFromTriple tripleCStr targetRef
-            MkTarget <$> peek targetRef
+    liftIO $
+        Text.Foreign.withCString triple \tripleCStr -> do
+            Foreign.alloca \targetRef -> do
+                withErrorMessage (Just $ "getTargetFromTriple \"" <> triple <> "\"") $ Missing.getTargetFromTriple tripleCStr targetRef
+                MkTarget <$> peek targetRef
 
 wrapDirectly 'Missing.getTargetName "Returns the name of a target."
 wrapDirectly 'Missing.getTargetDescription "Returns the description of a target."
@@ -115,9 +116,9 @@ wrapDirectly 'Missing.setTargetMachineMachineOutliner "Enable the MachineOutline
 
 This wraps several c++ only classes (among them a file stream). Returns any error as an 'LLVMError' exception.
 -}
-targetMachineEmitToFile :: TargetMachine -> Module -> OsPath -> CodeGenFileType -> IO ()
+targetMachineEmitToFile :: (MonadIO io) => TargetMachine -> Module -> OsPath -> CodeGenFileType -> io ()
 targetMachineEmitToFile targetMachine module_ filePath codegenFileType =
-    withTargetMachine targetMachine \targetMachineRef -> do
+    liftIO $ withTargetMachine targetMachine \targetMachineRef -> do
         pathString <- OsPath.decodeFS filePath
         withModule module_ \moduleRef ->
             withOsPath filePath \pathCString -> do
@@ -125,9 +126,9 @@ targetMachineEmitToFile targetMachine module_ filePath codegenFileType =
                     Missing.targetMachineEmitToFile targetMachineRef moduleRef pathCString (unwrapCodeGenFileType codegenFileType)
 
 -- | Compile the LLVM IR stored in the given module and store the result in the memory buffer.
-targetMachineEmitToMemoryBuffer :: TargetMachine -> Module -> CodeGenFileType -> MemoryBuffer -> IO ()
+targetMachineEmitToMemoryBuffer :: (MonadIO io) => TargetMachine -> Module -> CodeGenFileType -> MemoryBuffer -> io ()
 targetMachineEmitToMemoryBuffer targetMachine module_ codegenFileType buffer =
-    withTargetMachine targetMachine \targetMachineRef ->
+    liftIO $ withTargetMachine targetMachine \targetMachineRef ->
         withModule module_ \moduleRef ->
             withMemoryBuffer buffer \bufferRef ->
                 withErrorMessage (Just "targetMachineEmitToMemoryBuffer") \errorMessagePtr -> do
