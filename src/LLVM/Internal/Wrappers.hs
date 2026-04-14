@@ -478,6 +478,7 @@ cEnum
     [ "AssemblyFile"
     , "ObjectFile"
     ]
+deriving instance Show CodeGenFileType
 
 foreignPointerWrapper "MemoryBuffer"
 

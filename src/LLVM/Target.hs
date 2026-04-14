@@ -118,13 +118,13 @@ wrapDirectly 'Missing.setTargetMachineMachineOutliner "Enable the MachineOutline
 This wraps several c++ only classes (among them a file stream). Returns any error as an 'LLVMError' exception.
 -}
 targetMachineEmitToFile :: (MonadIO io) => TargetMachine -> Module -> OsPath -> CodeGenFileType -> io ()
-targetMachineEmitToFile targetMachine module_ filePath codegenFileType =
+targetMachineEmitToFile targetMachine module_ filePath codeGenFileType =
     liftIO $ withTargetMachine targetMachine \targetMachineRef -> do
         pathString <- OsPath.decodeFS filePath
         withModule module_ \moduleRef ->
             withOsPath filePath \pathCString -> do
-                withErrorMessage (Just $ "targetMachineEmitToFile _ " <> Text.pack pathString) do
-                    Missing.targetMachineEmitToFile targetMachineRef moduleRef pathCString (unwrapCodeGenFileType codegenFileType)
+                withErrorMessage (Just $ "targetMachineEmitToFile _ _ \"" <> Text.pack pathString <> "\"" <> Text.pack (show codeGenFileType)) do
+                    Missing.targetMachineEmitToFile targetMachineRef moduleRef pathCString (unwrapCodeGenFileType codeGenFileType)
 
 -- | Compile the LLVM IR stored in the given module and store the result in the memory buffer.
 targetMachineEmitToMemoryBuffer :: (MonadIO io) => TargetMachine -> Module -> CodeGenFileType -> MemoryBuffer -> io ()

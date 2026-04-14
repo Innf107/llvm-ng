@@ -37,14 +37,14 @@ let mapAsyncChunked(size, list, f) = match list {
     }
 }
 
-let isForeignPointerFinalizer(function) = match regexpMatch("AsForeignPtrWith\\s+\"${function}\"", !cat "src/LLVM/FFI/Missing.hs") {
+let isUsedAsForeignPointerFinalizer(function) = match regexpMatch("AsForeignPtrWith\\s+\"${function}\"", !cat "src/LLVM/FFI/Missing.hs") {
     [] -> false
     _ -> true
 }
 
 let uncoveredFunctions = mapAsyncChunked(10, functions, \function -> {
     if not isContainedInAny(function, ["src/LLVM/Core.hs", "src/LLVM/InstructionBuilder.hs", "src/LLVM/Core/Context.hs", "src/LLVM/Core/Phi.hs", "src/LLVM/Target.hs"])
-        && not isForeignPointerFinalizer(function) then {
+        && not isUsedAsForeignPointerFinalizer(function) then {
         if asDirective then
             Just("wrapDirectly 'Missing.${function} \"TODO\"")
         else
