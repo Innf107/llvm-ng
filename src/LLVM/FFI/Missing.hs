@@ -887,10 +887,10 @@ foreign import capi unsafe "llvm-c/Target.h LLVMInitializeNativeAsmParser"
     initializeNativeAsmParser :: IO Raw.Bool
 
 foreign import capi unsafe "llvm-c/Target.h LLVMInitializeNativeAsmPrinter"
-    initializeNativeAsmPrinter :: IO ()
+    initializeNativeAsmPrinter :: IO Raw.Bool
 
 foreign import capi unsafe "llvm-c/Target.h LLVMInitializeNativeDisassembler"
-    initializeNativeDisassembler :: IO ()
+    initializeNativeDisassembler :: IO Raw.Bool
 
 foreign import capi unsafe "llvm-c/Target.h LLVMGetModuleDataLayout"
     getModuleDataLayout :: Raw.ModuleRef -> IO TargetDataRef
