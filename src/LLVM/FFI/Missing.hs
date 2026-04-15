@@ -953,7 +953,7 @@ foreign import capi unsafe "llvm-c/Target.h LLVMOffsetOfElement"
     llvmOffsetOfElement :: TargetDataRef -> Raw.TypeRef -> CUInt -> IO Word64
 
 foreign import capi unsafe "llvm-c/TargetMachine.h LLVMGetFirstTarget"
-    getFirstTarget :: IO TargetRef
+    getFirstTarget :: IO (MightBeNull TargetRef)
 
 foreign import capi unsafe "llvm-c/TargetMachine.h LLVMGetNextTarget"
     getNextTarget :: TargetRef -> IO (MightBeNull TargetRef)
@@ -1008,7 +1008,7 @@ foreign import capi unsafe "llvm-c/TargetMachine.h LLVMCreateTargetMachineWithOp
         TargetRef ->
         CString ->
         TargetMachineOptionsRef ->
-        IO (AsForeignPtrWith "disposeTargetMachine" TargetMachineRef)
+        IO (MightBeNull (AsForeignPtrWith "disposeTargetMachine" TargetMachineRef))
 
 foreign import capi unsafe "llvm-c/TargetMachine.h LLVMCreateTargetMachine"
     createTargetMachine ::
@@ -1019,7 +1019,7 @@ foreign import capi unsafe "llvm-c/TargetMachine.h LLVMCreateTargetMachine"
         RawCodeGenOptLevel ->
         RawRelocMode ->
         RawCodeModel ->
-        IO (AsForeignPtrWith "disposeTargetMachine" TargetMachineRef)
+        IO (MightBeNull (AsForeignPtrWith "disposeTargetMachine" TargetMachineRef))
 
 foreign import capi unsafe "llvm-c/TargetMachine.h &LLVMDisposeTargetMachine"
     disposeTargetMachine :: FinalizerPtr OpaqueTargetMachine
