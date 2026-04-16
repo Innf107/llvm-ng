@@ -1089,3 +1089,6 @@ foreign import capi unsafe "llvm-c/TargetMachine.h LLVMGetHostCPUFeatures"
 
 foreign import capi unsafe "llvm-c/TargetMachine.h LLVMAddAnalysisPasses"
     addAnalysisPasses :: TargetMachineRef -> Raw.PassManagerRef -> IO ()
+
+foreign import capi unsafe "llvm-c/Core.h LLVMSetTarget"
+    setTarget :: Raw.ModuleRef -> CString -> IO ()

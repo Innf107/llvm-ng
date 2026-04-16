@@ -260,6 +260,9 @@ module LLVM.Core (
     getBlockAddressFunction,
     getBlockAddressBasicBlock,
 
+    -- * Modules
+    setTarget,
+
     -- * Opaque Types
 
     {- | Most of the types exposed by this library are opaque wrappers around the types provided by the underlying LLVM C bindings.
@@ -1098,3 +1101,5 @@ wrapDirectly 'Missing.removeEnumAttributeAtIndex ""
 wrapDirectly 'Missing.removeStringAttributeAtIndex ""
 
 wrapDirectly 'Missing.addTargetDependentFunctionAttr ""
+
+wrapDirectly 'Missing.setTarget "Set the target triple for a module."
