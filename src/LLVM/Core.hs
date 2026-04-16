@@ -3,6 +3,7 @@
 -- Our TH occasionally emits unnecessary 'fromIntegral' calls for simplicity.
 -- These will be optimized away but we don't need to be warned about them.
 {-# OPTIONS_GHC -Wno-identities #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 module LLVM.Core (
     -- * Common Operations
@@ -865,6 +866,9 @@ getParamTypes functionType = liftIO do
 wrapDirectlyPure 'Raw.typeIsSized "Whether the type has a known size.\n\nThings that don't have a size are abstract types, labels, and void."
 
 wrapAsPure "printTypeToText" 'Missing.printTypeToString "Return a 'Text' representation of the type."
+
+instance Show Type where
+    show type_ = Text.unpack (printTypeToText type_)
 
 wrapDirectly 'Missing.getNumArgOperands "Obtain the argument count for a call instruction.\n\nThis expects a 'Value' that corresponds to a llvm::CallInst, llvm::InvokeInst, or llvm::FuncletPadInst."
 
