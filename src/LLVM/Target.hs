@@ -6,6 +6,8 @@ module LLVM.Target (
     TargetData (..),
     Target (..),
     CodeGenOptLevel (..),
+    RelocMode(..),
+    CodeModel(..),
     CodeGenFileType(..),
 ) where
 
