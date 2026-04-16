@@ -5,6 +5,7 @@ module LLVM.Target (
     ByteOrdering (..),
     TargetData (..),
     Target (..),
+    TargetMachine(..),
     CodeGenOptLevel (..),
     RelocMode(..),
     CodeModel(..),
