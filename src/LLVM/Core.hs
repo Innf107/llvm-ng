@@ -298,6 +298,7 @@ module LLVM.Core (
     TailCallKind (..),
     OperandBundle,
     CallingConvention,
+    VerifierFailureAction(..),
 
     -- * Debugging
     dumpModule,
@@ -1119,10 +1120,10 @@ wrapDirectly 'Missing.addTargetDependentFunctionAttr ""
 wrapDirectly 'Missing.setTarget "Set the target triple for a module."
 
 
-verifyModule :: MonadIO io => Module -> VerifierFailureAction -> io ()
-verifyModule module_ failureAction = liftIO $
+verifyModule :: MonadIO io => Module -> io ()
+verifyModule module_ = liftIO $
     withModule module_ \moduleRef ->
-        withErrorMessage (Just "verifyModule") (Missing.verifyModule moduleRef (unwrapVerifierFailureAction failureAction))
+        withErrorMessage (Just "verifyModule") (Missing.verifyModule moduleRef (unwrapVerifierFailureAction ReturnStatusAction))
 
 wrapDirectly 'Missing.verifyFunction ""
 
