@@ -199,7 +199,7 @@ wrapParameter rawType varName = case rawType of
         | "Raw" `List.isPrefixOf` TH.nameBase typeName ->
             getEnumWrapper typeName >>= \case
                 Just (wrapperTypeName, _wrap, unwrap) -> wrapFunction wrapperTypeName unwrap
-                Nothing -> fail $ "Unable to auto-wrap Raw enum " <> show typeName <> " in argument positin"
+                Nothing -> fail $ "Unable to auto-wrap Raw enum " <> show typeName <> " in argument position"
         | otherwise -> fail $ "Unable to wrap unsupported type constructor " <> show typeName <> " in argument position"
     _ -> fail $ "Unable to wrap non-constructor parameter type " <> show rawType <> " in argument position"
   where

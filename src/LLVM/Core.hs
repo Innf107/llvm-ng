@@ -17,6 +17,7 @@ module LLVM.Core (
     Target.initializeAllTargets,
     Target.initializeAllTargetInfos,
     Target.initializeNativeTarget,
+    verifyModule,
 
     -- * LLVM Types
     functionType,
@@ -263,6 +264,12 @@ module LLVM.Core (
     -- * Modules
     setTarget,
 
+    -- * Verification
+    verifyModule,
+    verifyFunction,
+    viewFunctionCFG,
+    viewFunctionCFGOnly,
+
     -- * Opaque Types
 
     {- | Most of the types exposed by this library are opaque wrappers around the types provided by the underlying LLVM C bindings.
@@ -337,6 +344,9 @@ import LLVM.Internal.Wrappers (
     TailCallKind (..),
     Type (..),
     Value (..),
+    VerifierFailureAction(..),
+    wrapVerifierFailureAction,
+    unwrapVerifierFailureAction,
     functionTypeAsType,
     unsafeTypeAsFunctionType,
     withContext,
@@ -1103,3 +1113,15 @@ wrapDirectly 'Missing.removeStringAttributeAtIndex ""
 wrapDirectly 'Missing.addTargetDependentFunctionAttr ""
 
 wrapDirectly 'Missing.setTarget "Set the target triple for a module."
+
+
+verifyModule :: MonadIO io => Module -> VerifierFailureAction -> io ()
+verifyModule module_ failureAction = liftIO $
+    withModule module_ \moduleRef ->
+        withErrorMessage (Just "verifyModule") (Missing.verifyModule moduleRef (unwrapVerifierFailureAction failureAction))
+
+wrapDirectly 'Missing.verifyFunction ""
+
+wrapDirectly 'Missing.viewFunctionCFG ""
+
+wrapDirectly 'Missing.viewFunctionCFGOnly ""

@@ -13,50 +13,7 @@ import Foreign.C (CInt (..), CSize (..), CString, CUInt (..))
 import Foreign.Ptr (Ptr)
 import LLVM.FFI.Core qualified as Raw
 import LLVM.FFI.Target qualified as Raw
-import LLVM.Internal.Wrappers (
-    AsForeignPtrWith,
-    CStringAsOSPath,
-    CStringLenAsByteString,
-    CStringLenAsText,
-    DiagnosticInfoRef,
-    FunctionTypeRef,
-    GlobalRef,
-    IntPredicate,
-    MemoryBufferRef,
-    MessageCString,
-    MetaDataRef,
-    MightBeNull,
-    OpaqueMemoryBuffer,
-    OpaqueTargetData,
-    OpaqueTargetMachine,
-    OpaqueTargetMachineOptions,
-    OperandBundleRef,
-    OwnedOperandBundleRef,
-    PassManager,
-    RawByteOrdering,
-    RawCallingConvention,
-    RawCodeGenFileType,
-    RawCodeGenOptLevel,
-    RawCodeModel,
-    RawDLLStorageClass,
-    RawFastMathFlags,
-    RawGEPNoWrapFlags,
-    RawGlobalISELAbortMode,
-    RawIntPredicate,
-    RawLinkage,
-    RawRealPredicate,
-    RawRelocMode,
-    RawTailCallKind,
-    RawUnnamedAddr,
-    RawVisibility,
-    TargetDataRef,
-    TargetLibraryInfo,
-    TargetMachineOptionsRef,
-    TargetMachineRef,
-    TargetRef,
-    UnownedCString,
-    ValueMetadataEntriesRef,
- )
+import LLVM.Internal.Wrappers
 
 foreign import capi unsafe "llvm-c/Core.h LLVMPrintModuleToFile"
     printModuleToFile ::
@@ -1092,3 +1049,15 @@ foreign import capi unsafe "llvm-c/TargetMachine.h LLVMAddAnalysisPasses"
 
 foreign import capi unsafe "llvm-c/Core.h LLVMSetTarget"
     setTarget :: Raw.ModuleRef -> CString -> IO ()
+
+foreign import capi unsafe "llvm-c/Analysis.h LLVMVerifyModule"
+    verifyModule :: Raw.ModuleRef -> RawVerifierFailureAction -> Ptr CString -> IO Raw.Bool
+
+foreign import capi unsafe "llvm-c/Analysis.h LLVMVerifyFunction"
+    verifyFunction :: Raw.ValueRef -> RawVerifierFailureAction -> IO Raw.Bool
+
+foreign import capi unsafe "llvm-c/Analysis.h LLVMViewFunctionCFG"
+    viewFunctionCFG :: Raw.ValueRef -> IO ()
+
+foreign import capi unsafe "llvm-c/Analysis.h LLVMViewFunctionCFGOnly"
+    viewFunctionCFGOnly :: Raw.ValueRef -> IO ()
