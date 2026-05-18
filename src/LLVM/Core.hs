@@ -366,6 +366,7 @@ import LLVM.Target qualified as Target
 import System.IO.Unsafe (unsafePerformIO)
 import System.OsPath (OsPath)
 import System.OsPath qualified as OsPath
+import GHC.Stack (HasCallStack)
 
 {- | Create a new, empty module in a specific context.
 
@@ -659,8 +660,6 @@ appendBasicBlock (MkValue function) name = liftIO $
         Text.Foreign.withCString name \cname ->
             MkBlock <$> Raw.appendBasicBlockInContext contextRef function cname
 
-wrapDirectlyPure 'Raw.getParam ""
-
 wrapDirectlyPure 'Raw.constInt "Obtain a constant value for an integer type.\n\nThe returned value corresponds to a llvm::ConstantInt."
 
 -- TODO: constIntOfArbitraryPrecision
@@ -877,7 +876,11 @@ wrapDirectlyPure 'Raw.typeIsSized "Whether the type has a known size.\n\nThings 
 wrapAsPure "printTypeToText" 'Missing.printTypeToString "Return a 'Text' representation of the type."
 
 instance Show Type where
+    show :: Type -> String
     show type_ = Text.unpack (printTypeToText type_)
+
+instance Show FunctionType where
+    show functionType = show (functionTypeAsType functionType)
 
 wrapDirectly 'Missing.getNumArgOperands "Obtain the argument count for a call instruction.\n\nThis expects a 'Value' that corresponds to a llvm::CallInst, llvm::InvokeInst, or llvm::FuncletPadInst."
 
@@ -1144,3 +1147,13 @@ wrapAsPure "printValueToText" 'Missing.printValueToString "Return a string repre
 
 instance Show Value where
     show value = Text.unpack (printValueToText value)
+
+
+getParam :: (HasCallStack) => Value -> Int -> Value
+getParam (MkValue function) index = unsafePerformIO do
+    functionType <- Missing.typeOf function
+    parameterCount <- Raw.countParamTypes functionType
+    if index > 0 && index < fromIntegral parameterCount then 
+        MkValue <$> Raw.getParam function (fromIntegral index)
+    else
+        error $ "getParam: Index " <> show index <> " out of bounds for a function of type " <> show (MkType functionType)
