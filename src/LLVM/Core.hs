@@ -1151,9 +1151,8 @@ instance Show Value where
 
 getParam :: (HasCallStack) => Value -> Int -> Value
 getParam (MkValue function) index = unsafePerformIO do
-    functionType <- Missing.typeOf function
-    parameterCount <- Raw.countParamTypes functionType
+    parameterCount <- Raw.countParams function
     if index >= 0 && index < fromIntegral parameterCount then 
         MkValue <$> Raw.getParam function (fromIntegral index)
     else
-        error $ "getParam: Index " <> show index <> " out of bounds for a function of type " <> show (MkType functionType)
+        error $ "getParam: Index " <> show index <> " out of bounds for a function with " <> show parameterCount <> " parameters"
