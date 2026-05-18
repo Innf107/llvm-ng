@@ -57,6 +57,10 @@ module LLVM.Core (
     getReturnType,
     getParamTypes,
 
+    -- ** Operations on Values
+    typeOf,
+    printValueToText,
+
     -- * Constants
     constInt,
     constIntOfString,
@@ -298,12 +302,12 @@ module LLVM.Core (
     TailCallKind (..),
     OperandBundle,
     CallingConvention,
-    VerifierFailureAction(..),
+    VerifierFailureAction (..),
 
     -- * Debugging
     dumpModule,
     printModuleToFile,
-    printModuleToString,
+    printModuleToText,
 
     -- * Other
     IntPredicate (..),
@@ -344,17 +348,18 @@ import LLVM.Internal.Wrappers (
     OperandBundle,
     RealPredicate (..),
     TailCallKind (..),
+    TargetData,
     Type (..),
     Value (..),
-    VerifierFailureAction(..),
-    wrapVerifierFailureAction,
-    unwrapVerifierFailureAction,
+    VerifierFailureAction (..),
     functionTypeAsType,
     unsafeTypeAsFunctionType,
+    unwrapVerifierFailureAction,
     withContext,
     withModule,
     withTypeArray,
-    withUnsignedArray, TargetData,
+    withUnsignedArray,
+    wrapVerifierFailureAction,
  )
 import LLVM.Internal.Wrappers qualified as Wrappers
 import LLVM.Target qualified as Target
@@ -636,13 +641,16 @@ printModuleToFile module_ filePath = liftIO do
             withErrorMessage (Just ("printModuleToFile _ \"" <> Text.pack filePathString <> "\"")) \errorMessagePtr -> do
                 Missing.printModuleToFile module_ filePathCString errorMessagePtr
 
-printModuleToString :: Module -> Text
-printModuleToString module_ = unsafePerformIO do
+printModuleToText :: Module -> Text
+printModuleToText module_ = unsafePerformIO do
     withModule module_ \module_ -> mask_ do
         cstring <- Missing.printModuleToString module_
         result <- Text.Foreign.peekCString cstring
         Raw.disposeMessage cstring
         pure result
+
+instance Show Module where
+    show module_ = Text.unpack (printModuleToText module_)
 
 -- | Append a basic block to the end of a function.
 appendBasicBlock :: (?context :: Context, MonadIO io) => Value -> Text -> io BasicBlock
@@ -1119,8 +1127,7 @@ wrapDirectly 'Missing.addTargetDependentFunctionAttr ""
 
 wrapDirectly 'Missing.setTarget "Set the target triple for a module."
 
-
-verifyModule :: MonadIO io => Module -> io ()
+verifyModule :: (MonadIO io) => Module -> io ()
 verifyModule module_ = liftIO $
     withModule module_ \moduleRef ->
         withErrorMessage (Just "verifyModule") (Missing.verifyModule moduleRef (unwrapVerifierFailureAction ReturnStatusAction))
@@ -1130,3 +1137,10 @@ wrapDirectly 'Missing.verifyFunction ""
 wrapDirectly 'Missing.viewFunctionCFG ""
 
 wrapDirectly 'Missing.viewFunctionCFGOnly ""
+
+wrapDirectlyPure 'Missing.typeOf "Obtain the type of a value. "
+
+wrapAsPure "printValueToText" 'Missing.printValueToString "Return a string representation of the value. "
+
+instance Show Value where
+    show value = Text.unpack (printValueToText value)

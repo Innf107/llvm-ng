@@ -1061,3 +1061,11 @@ foreign import capi unsafe "llvm-c/Analysis.h LLVMViewFunctionCFG"
 
 foreign import capi unsafe "llvm-c/Analysis.h LLVMViewFunctionCFGOnly"
     viewFunctionCFGOnly :: Raw.ValueRef -> IO ()
+
+foreign import capi unsafe "llvm-c/Core.h LLVMTypeOf"
+    typeOf :: Raw.ValueRef -> IO Raw.TypeRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMPrintValueToString"
+    printValueToString :: Raw.ValueRef -> IO MessageCString
+
+
