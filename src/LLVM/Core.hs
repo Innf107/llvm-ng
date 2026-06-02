@@ -326,9 +326,8 @@ import Data.Text.Foreign qualified as Text.Foreign
 import Data.Vector.Storable qualified as Storable
 import Data.Vector.Storable.Mutable qualified as Storable.Mutable
 import Data.Vector.Strict qualified as Strict
-import Foreign (Ptr, Storable (peek), alloca, nullPtr, poke)
+import Foreign (Ptr, Storable (peek), alloca, nullPtr, poke, newForeignPtr)
 import Foreign.C (CUInt, withCString)
-import Foreign.Concurrent (newForeignPtr)
 import LLVM.Core.Context
 import LLVM.FFI.Core qualified as Raw
 import LLVM.FFI.Missing qualified as Missing
@@ -377,7 +376,7 @@ moduleCreateWithName name = liftIO do
     rawModule <- Text.Foreign.withCString name \nameCString -> do
         withContext ?context \contextPtr -> do
             Raw.moduleCreateWithNameInContext nameCString contextPtr
-    MkModule <$> newForeignPtr rawModule (Raw.disposeModule rawModule)
+    MkModule <$> Foreign.newForeignPtr Missing.disposeModule rawModule
 
 -- | Add a function to a module under a specified name.
 addFunction :: (MonadIO io) => Module -> Text -> FunctionType -> io Value

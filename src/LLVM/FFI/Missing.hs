@@ -23,10 +23,6 @@ foreign import capi unsafe "llvm-c/Core.h LLVMDumpModule"
     dumpModule ::
         Raw.ModuleRef -> IO ()
 
-foreign import capi unsafe "llvm-c/Core.h LLVMDisposeBuilder"
-    disposeBuilder ::
-        Raw.BuilderRef -> IO ()
-
 foreign import capi unsafe "llvm-c/Core.h LLVMPrintModuleToString"
     printModuleToString ::
         Raw.ModuleRef -> IO CString
@@ -642,6 +638,8 @@ foreign import capi unsafe "llvm-c/Core.h LLVMGlobalClearMetadata"
 foreign import capi unsafe "llvm-c/Core.h LLVMGlobalCopyAllMetadata"
     globalCopyAllMetadata :: GlobalRef -> Ptr CSize -> IO ValueMetadataEntriesRef
 
+-- We don't use this one as a finalizer so it is okay to wrap it as a regular function
+-- instead of a finalizer pointer
 foreign import capi unsafe "llvm-c/Core.h LLVMDisposeValueMetadataEntries"
     disposeValueMetadataEntries :: ValueMetadataEntriesRef -> IO ()
 
@@ -1068,4 +1066,11 @@ foreign import capi unsafe "llvm-c/Core.h LLVMTypeOf"
 foreign import capi unsafe "llvm-c/Core.h LLVMPrintValueToString"
     printValueToString :: Raw.ValueRef -> IO MessageCString
 
+foreign import capi unsafe "llvm-c/Core.h &LLVMDisposeModule"
+    disposeModule :: FinalizerPtr Raw.Module
 
+foreign import capi unsafe "llvm-c/Core.h &LLVMContextDispose"
+    contextDispose :: FinalizerPtr Raw.Context
+
+foreign import capi unsafe "llvm-c/Core.h &LLVMDisposeBuilder"
+    disposeBuilder :: FinalizerPtr Raw.Builder

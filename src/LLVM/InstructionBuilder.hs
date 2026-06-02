@@ -14,9 +14,8 @@ import Data.Text.Foreign qualified as Text.Foreign
 import Data.Vector.Storable qualified as Storable
 import Data.Vector.Strict qualified as Strict
 import Data.Vector.Strict qualified as Vector
-import Foreign (Ptr, Storable (sizeOf), allocaBytes)
+import Foreign (Ptr, Storable (sizeOf), allocaBytes, newForeignPtr)
 import Foreign.C (CString, CUInt)
-import Foreign.Concurrent (newForeignPtr)
 import Foreign.Ptr (nullPtr)
 import LLVM.Core (FastMathFlags)
 import LLVM.Core.Phi (addIncoming)
@@ -44,7 +43,7 @@ import LLVM.Internal.Wrappers (
 createBuilder :: (?context :: Context, MonadIO io) => io Builder
 createBuilder = liftIO $ withContext ?context \context -> do
     rawBuilder <- Raw.createBuilderInContext context
-    foreignPtr <- newForeignPtr rawBuilder (Missing.disposeBuilder rawBuilder)
+    foreignPtr <- newForeignPtr Missing.disposeBuilder rawBuilder
     pure (MkBuilder foreignPtr)
 
 -- | Set the builder position before Instr but after any attached debug records, or if Instr is null set the position to the end of Block.

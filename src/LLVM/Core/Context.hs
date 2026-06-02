@@ -7,8 +7,8 @@ import Data.Text (Text)
 import Data.Text.Foreign qualified as Foreign.Text
 import Data.Text.Foreign qualified as Text.Foreign
 import Foreign (Storable (peek), alloca)
+import Foreign qualified
 import Foreign.C (CUInt)
-import Foreign.Concurrent (newForeignPtr)
 import LLVM.FFI.Core (AttributeKind (AttributeKind))
 import LLVM.FFI.Core qualified as Raw
 import LLVM.FFI.Missing qualified as Missing
@@ -24,7 +24,7 @@ The context has an attached finalizer and will automatically be garbage collecte
 contextCreate :: (MonadIO io) => io Context
 contextCreate = liftIO do
     rawContext <- Raw.contextCreate
-    MkContext <$> newForeignPtr rawContext (Raw.contextDispose rawContext)
+    MkContext <$> Foreign.newForeignPtr Missing.contextDispose rawContext
 
 -- TODO: contextSetDiagnosticHandelr, contextGetDiagnosticHandler, contextGetDiagnosticContext, contextSetYieldCallback
 
