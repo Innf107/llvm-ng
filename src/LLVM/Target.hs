@@ -20,7 +20,7 @@ import Data.Foldable (for_)
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Foreign qualified as Text.Foreign
-import Foreign (peek, poke)
+import Foreign (peek, poke, nullPtr)
 import Foreign qualified
 import LLVM.FFI.Missing qualified as Missing
 import LLVM.Internal.Error (withErrorMessage)
@@ -118,7 +118,7 @@ defaultTargetMachineOptions =
         , codeModel = Nothing
         }
 
-createTargetMachineWithOptions :: (MonadIO io) => Target -> Text -> TargetMachineOptions -> io TargetMachine
+createTargetMachineWithOptions :: (MonadIO io) => Target -> Text -> TargetMachineOptions -> io (Maybe TargetMachine)
 createTargetMachineWithOptions (MkTarget target) triple options = liftIO do
     bracket
         Missing.createTargetMachineOptions
@@ -132,7 +132,10 @@ createTargetMachineWithOptions (MkTarget target) triple options = liftIO do
 
             mask_ do
                 rawTargetMachine <- Missing.createTargetMachineWithOptions target tripleCString llvmOptions
-                MkTargetMachine <$> Foreign.newForeignPtr Missing.disposeTargetMachine rawTargetMachine
+                if rawTargetMachine == nullPtr then
+                    pure Nothing
+                else  
+                    Just . MkTargetMachine <$> Foreign.newForeignPtr Missing.disposeTargetMachine rawTargetMachine
 
 wrapDirectly 'Missing.createTargetMachine "Creates a new 'TargetMachine'"
 
