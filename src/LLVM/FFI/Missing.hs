@@ -1018,7 +1018,7 @@ foreign import capi unsafe "llvm-c/TargetMachine.h LLVMSetTargetMachineGlobalISe
 foreign import capi unsafe "llvm-c/TargetMachine.h LLVMSetTargetMachineMachineOutliner"
     setTargetMachineMachineOutliner :: TargetMachineRef -> Raw.Bool -> IO ()
 
-foreign import capi unsafe "llvm-c/TargetMachine.h LLVMTargetMachineEmitToFile"
+foreign import capi safe "llvm-c/TargetMachine.h LLVMTargetMachineEmitToFile"
     targetMachineEmitToFile ::
         TargetMachineRef ->
         Raw.ModuleRef ->
@@ -1027,7 +1027,7 @@ foreign import capi unsafe "llvm-c/TargetMachine.h LLVMTargetMachineEmitToFile"
         Ptr CString ->
         IO Raw.Bool
 
-foreign import capi unsafe "llvm-c/TargetMachine.h LLVMTargetMachineEmitToMemoryBuffer"
+foreign import capi safe "llvm-c/TargetMachine.h LLVMTargetMachineEmitToMemoryBuffer"
     targetMachineEmitToMemoryBuffer ::
         TargetMachineRef ->
         Raw.ModuleRef ->
