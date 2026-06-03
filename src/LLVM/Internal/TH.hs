@@ -28,7 +28,7 @@ import GHC.Stack (HasCallStack)
 import LLVM.FFI.Core qualified as Raw
 import LLVM.FFI.Target qualified as Raw
 import LLVM.Internal.Error (withErrorMessage)
-import LLVM.Internal.Wrappers (AsForeignPtrWith, CStringLenAsByteString, CStringLenAsText, MightBeNull)
+import LLVM.Internal.Wrappers (AsForeignPtrWith, CStringLenAsByteString, CStringLenAsText, MightBeNull, Context (..))
 import LLVM.Internal.Wrappers qualified as Wrappers
 
 wrapDirectly :: Name -> String -> TH.DecsQ
@@ -70,7 +70,7 @@ wrapBase isPure wrappedFunctionName rawFunctionName docString = do
                 CStringLenAs kind -> wrapCStringLenAs kind name
                 Context -> do
                     name <- TH.newName "context"
-                    pure (Nothing, [TH.varE name], (\body -> [|Wrappers.withContext ?context \ $(TH.varP name) -> $body|]))
+                    pure (Nothing, [TH.varE name], (\body -> [|let MkContext $(TH.varP name) = ?context in $body|]))
                 ErrorMessageCStringPtr -> do
                     pure (Nothing, [], \body -> [|withErrorMessage (Just (Text.pack wrappedFunctionName)) $body|])
     let wrappedArgumentTypes = catMaybes wrappedArgumentTypeMaybes
@@ -149,7 +149,7 @@ parseTypes types = case types of
 wrapParameter :: TH.Type -> Name -> Q (Maybe TH.Type, [TH.ExpQ], TH.ExpQ -> TH.ExpQ)
 wrapParameter rawType varName = case rawType of
     TH.ConT typeName
-        | typeName == ''Raw.ModuleRef -> wrapWith ''Wrappers.Module 'Wrappers.withModule
+        | typeName == ''Raw.ModuleRef -> wrapNewtype ''Wrappers.Module 'Wrappers.MkModule
         | typeName == ''Raw.BasicBlockRef -> wrapNewtype ''Wrappers.BasicBlock 'Wrappers.MkBlock
         | typeName == ''Raw.TypeRef -> wrapNewtype ''Wrappers.Type 'Wrappers.MkType
         | typeName == ''Raw.AttributeKind -> wrapIdentity typeName

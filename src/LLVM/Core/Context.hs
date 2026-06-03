@@ -13,18 +13,22 @@ import LLVM.FFI.Core (AttributeKind (AttributeKind))
 import LLVM.FFI.Core qualified as Raw
 import LLVM.FFI.Missing qualified as Missing
 import LLVM.Internal.TH (wrapAs, wrapDirectly)
-import LLVM.Internal.Wrappers (Attribute (..), Context (..), DiagnosticInfo (MkDiagnosticInfo), withContext, wrapMessage)
+import LLVM.Internal.Wrappers (Attribute (..), Context (..), DiagnosticInfo (MkDiagnosticInfo), wrapMessage)
 import LLVM.Internal.Wrappers qualified as Wrappers
 import System.IO.Unsafe (unsafePerformIO)
 
 {- | Create a new context.
 
-The context has an attached finalizer and will automatically be garbage collected.
+The context is scoped to the lifetime of this continuation and will be disposed afterwards.
+In particular, nothing derived from the context (even innocent looking values like 'LLVM.Core.pointerType') may escape
+the continuation or you will hit segfaults.
 -}
-contextCreate :: (MonadIO io) => io Context
-contextCreate = liftIO do
-    rawContext <- Raw.contextCreate
-    MkContext <$> Foreign.newForeignPtr Missing.contextDispose rawContext
+withContext :: (MonadIO io) => ((?context :: Context) => io r) -> io r
+withContext cont = do
+    rawContext <- liftIO Raw.contextCreate
+    result <- let ?context = MkContext rawContext in cont
+    liftIO $ Raw.contextDispose rawContext
+    pure result
 
 -- TODO: contextSetDiagnosticHandelr, contextGetDiagnosticHandler, contextGetDiagnosticContext, contextSetYieldCallback
 
@@ -42,11 +46,11 @@ getDiagInfoDescription (MkDiagnosticInfo ref) = liftIO $ wrapMessage =<< Missing
 
 -- | Maps a synchronization scope name to a ID unique within this context.
 getSyncScopeId :: (?context :: Context, MonadIO io) => Text -> io Int
-getSyncScopeId name =
+getSyncScopeId name = do
+    let MkContext context = ?context
     liftIO $
         fromIntegral
-            <$> withContext ?context \context ->
-                Text.Foreign.withCStringLen name \(cstring, len) -> Missing.getSyncScopeId context cstring (fromIntegral len)
+            <$> Text.Foreign.withCStringLen name \(cstring, len) -> Missing.getSyncScopeId context cstring (fromIntegral len)
 
 {- | Return an unique id given the name of a enum attribute, or 0 if no attribute by that name exists.
     See http://llvm.org/docs/LangRef.html#parameter-attributes and http://llvm.org/docs/LangRef.html#function-attributes for the list of available attributes.
@@ -74,7 +78,8 @@ wrapDirectly 'Missing.getTypeAttributeValue "Get the type attribute's value."
 
 -- | Create a string attribute.
 createStringAttribute :: (MonadIO io, ?context :: Context) => Text -> Text -> io Wrappers.Attribute
-createStringAttribute k v = liftIO $ withContext ?context \context -> do
+createStringAttribute k v = liftIO $ do
+    let MkContext context = ?context
     Foreign.Text.withCStringLen k \(kstr, klen) ->
         Foreign.Text.withCStringLen v \(vstr, vlen) ->
             MkAttribute <$> Raw.createStringAttribute context kstr (fromIntegral klen) vstr (fromIntegral vlen)

@@ -7,8 +7,8 @@
 
 module LLVM.Core (
     -- * Common Operations
-    contextCreate,
-    moduleCreateWithName,
+    withContext,
+    withModule,
     addFunction,
     getNamedFunction,
     appendBasicBlock,
@@ -35,7 +35,7 @@ module LLVM.Core (
     doubleType,
     x86FP80Type,
     fp128Type,
-    ppcfp128Type,
+    ppcFP128Type,
     structType,
     arrayType,
     pointerType,
@@ -326,8 +326,9 @@ import Data.Text.Foreign qualified as Text.Foreign
 import Data.Vector.Storable qualified as Storable
 import Data.Vector.Storable.Mutable qualified as Storable.Mutable
 import Data.Vector.Strict qualified as Strict
-import Foreign (Ptr, Storable (peek), alloca, nullPtr, poke, newForeignPtr)
+import Foreign (Ptr, Storable (peek), alloca, newForeignPtr, nullPtr, poke)
 import Foreign.C (CUInt, withCString)
+import GHC.Stack (HasCallStack)
 import LLVM.Core.Context
 import LLVM.FFI.Core qualified as Raw
 import LLVM.FFI.Missing qualified as Missing
@@ -354,8 +355,6 @@ import LLVM.Internal.Wrappers (
     functionTypeAsType,
     unsafeTypeAsFunctionType,
     unwrapVerifierFailureAction,
-    withContext,
-    withModule,
     withTypeArray,
     withUnsignedArray,
     wrapVerifierFailureAction,
@@ -365,40 +364,27 @@ import LLVM.Target qualified as Target
 import System.IO.Unsafe (unsafePerformIO)
 import System.OsPath (OsPath)
 import System.OsPath qualified as OsPath
-import GHC.Stack (HasCallStack)
 
 {- | Create a new, empty module in a specific context.
 
-The mdoule has an attached finalizer and will automatically be garbage collected.
+The module is alive during the scope of this continuation.
+Accessing after its scope will cause segmentation faults.
 -}
-moduleCreateWithName :: (?context :: Context, MonadIO io) => Text -> io Module
-moduleCreateWithName name = liftIO do
-    rawModule <- Text.Foreign.withCString name \nameCString -> do
-        withContext ?context \contextPtr -> do
-            Raw.moduleCreateWithNameInContext nameCString contextPtr
-    MkModule <$> Foreign.newForeignPtr Missing.disposeModule rawModule
+withModule :: (?context :: Context, MonadIO io) => Text -> (Module -> io r) -> io r
+withModule name cont = do
+    let MkContext contextPtr = ?context
+    rawModule <- liftIO $ Text.Foreign.withCString name \nameCString -> do
+        Raw.moduleCreateWithNameInContext nameCString contextPtr
+    cont (MkModule rawModule)
 
 -- | Add a function to a module under a specified name.
-addFunction :: (MonadIO io) => Module -> Text -> FunctionType -> io Value
-addFunction module_ name functionType = liftIO do
-    let MkType type_ = functionTypeAsType functionType
-    function <- Text.Foreign.withCString name \nameCStr -> do
-        withModule module_ \modulePtr -> do
-            Raw.addFunction modulePtr nameCStr type_
-    pure (MkValue function)
+wrapDirectly 'Missing.addFunction "Add a function to a module under a specified name."
 
 {- | Obtain a Function value from a Module by its name.
 
 This is a wrapper around LLVMGetNamedFunctionWithLength
 -}
-getNamedFunction :: (MonadIO io) => Module -> Text -> io (Maybe Value)
-getNamedFunction module_ name = liftIO do
-    withModule module_ \moduleRef ->
-        Text.Foreign.withCStringLen name \(cstring, length) -> do
-            pointer <- Missing.getNamedFunctionWithLength moduleRef cstring (fromIntegral length)
-            if pointer == nullPtr
-                then pure Nothing
-                else pure (Just (MkValue pointer))
+wrapAs "getNamedFunction" 'Missing.getNamedFunctionWithLength "Obtain a Function value from a Module by its name.\n\nThis is a wrapper around LLVMGetNamedFunctionWithLength."
 
 {- | Obtain a function type consisting of a specified signature.
 
@@ -410,103 +396,37 @@ functionType parameterTypes (MkType returnType) isVarArg = unsafePerformIO do
         Raw.functionType returnType ptr size (Raw.consBool isVarArg)
     pure (unsafeTypeAsFunctionType (MkType ref))
 
--- | Construct an integer type with the given number of bits
-intType :: (?context :: Context) => Int -> Type
-intType numBits = unsafePerformIO do
-    ref <- withContext ?context \contextPtr -> do
-        Raw.intTypeInContext contextPtr (fromIntegral numBits)
-    pure (MkType ref)
+wrapAsPure "intType" 'Raw.intTypeInContext "Construct an integer type with the given number of bits"
 
--- | Construct a 1 bit integer type
-int1Type :: (?context :: Context) => Type
-int1Type = unsafePerformIO do
-    ref <- withContext ?context \contextPtr -> do
-        Raw.int1TypeInContext contextPtr
-    pure (MkType ref)
+wrapAsPure "int1Type" 'Raw.int1TypeInContext "Construct a 1 bit integer type"
 
--- | Construct an 8 bit integer type
-int8Type :: (?context :: Context) => Type
-int8Type = unsafePerformIO do
-    ref <- withContext ?context \contextPtr -> do
-        Raw.int8TypeInContext contextPtr
-    pure (MkType ref)
+wrapAsPure "int8Type" 'Raw.int8TypeInContext "Construct an 8 bit integer type"
 
--- | Construct a 16 bit integer type
-int16Type :: (?context :: Context) => Type
-int16Type = unsafePerformIO do
-    ref <- withContext ?context \contextPtr -> do
-        Raw.int16TypeInContext contextPtr
-    pure (MkType ref)
+wrapAsPure "int16Type" 'Raw.int16TypeInContext "Construct a 16 bit integer type"
 
--- | Construct a 32 bit integer type
-int32Type :: (?context :: Context) => Type
-int32Type = unsafePerformIO do
-    ref <- withContext ?context \contextPtr -> do
-        Raw.int32TypeInContext contextPtr
-    pure (MkType ref)
+wrapAsPure "int32Type" 'Raw.int32TypeInContext "Construct a 32 bit integer type"
 
--- | Construct a 64 bit integer type
-int64Type :: (?context :: Context) => Type
-int64Type = unsafePerformIO do
-    ref <- withContext ?context \contextPtr -> do
-        Raw.int64TypeInContext contextPtr
-    pure (MkType ref)
+wrapAsPure "int64Type" 'Raw.int64TypeInContext "Construct a 64 bit integer type"
 
--- | Construct a 128 bit integer type
-int128Type :: (?context :: Context) => Type
-int128Type = unsafePerformIO do
-    MkType <$> withContext ?context Missing.int128TypeInContext
+wrapAsPure "int128Type" 'Missing.int128TypeInContext "Construct a 128 bit integer type"
 
--- | Obtain a 16-bit floating point type from a context.
-halfType :: (?context :: Context) => Type
-halfType = unsafePerformIO do
-    MkType <$> withContext ?context Missing.halfTypeInContext
+wrapAsPure "halfType" 'Missing.halfTypeInContext "Obtain a 16-bit floating point type"
 
--- | Obtain a 16-bit brain floating point type from a context.
-bfloatType :: (?context :: Context) => Type
-bfloatType = unsafePerformIO do
-    MkType <$> withContext ?context Missing.bfloatTypeInContext
+wrapAsPure "bfloatType" 'Missing.bfloatTypeInContext "Obtain a 16-bit brain floating point type from a context"
 
--- | Obtain a 32-bit floating point type from a context.
-floatType :: (?context :: Context) => Type
-floatType = unsafePerformIO do
-    MkType <$> withContext ?context Raw.floatTypeInContext
+wrapAsPure "floatType" 'Raw.floatTypeInContext "Obtain a 32-bit floating point type from a context"
 
--- | Obtain a 64-bit floating point type from a context.
-doubleType :: (?context :: Context) => Type
-doubleType = unsafePerformIO do
-    MkType <$> withContext ?context Raw.doubleTypeInContext
+wrapAsPure "doubleType" 'Raw.doubleTypeInContext "Obtain a 64-bit floating point type from a context"
 
--- | Obtain a 80-bit floating point type (X87) from a context.
-x86FP80Type :: (?context :: Context) => Type
-x86FP80Type = unsafePerformIO do
-    MkType <$> withContext ?context Raw.x86FP80TypeInContext
+wrapAsPure "x86FP80Type" 'Raw.x86FP80TypeInContext "Obtain a 80-bit floating point type (X87) from a context."
 
--- | Obtain a 128-bit floating point type (112-bit mantissa) from a context.
-fp128Type :: (?context :: Context) => Type
-fp128Type = unsafePerformIO do
-    MkType <$> withContext ?context Raw.fp128TypeInContext
+wrapAsPure "fp128Type" 'Raw.fp128TypeInContext "Obtain a 128-bit floating point type (112-bit mantissa) from a context."
 
--- | Obtain a 128-bit floating point type (two 64-bits) from a context.
-ppcfp128Type :: (?context :: Context) => Type
-ppcfp128Type = unsafePerformIO do
-    MkType <$> withContext ?context Raw.ppcFP128TypeInContext
+wrapAsPure "ppcFP128Type" 'Raw.ppcFP128TypeInContext "Obtain a 128-bit floating point type (two 64-bits) from a context"
 
--- | Create a new structure type in a context.
-structType :: (?context :: Context) => Storable.Vector Type -> Bool -> Type
-structType elements packed = MkType $ unsafePerformIO do
-    withTypeArray elements \ptr size ->
-        withContext ?context \context ->
-            Raw.structTypeInContext context ptr size (Raw.consBool packed)
+wrapAsPure "structType" 'Raw.structTypeInContext "Create a new structure type in a context."
 
-{- | Create a fixed size array type that refers to a specific type.
-
-The created type will exist in the context that its element type exists in.
--}
-arrayType :: Type -> Int -> Type
-arrayType (MkType elementType) elementCount =
-    -- TODO: LLVMArrayType is deprecated and this should really use LLVMArrayType2
-    MkType $ unsafePerformIO (Raw.arrayType elementType (fromIntegral elementCount))
+wrapAsPure "arrayType" 'Missing.arrayType2 "Create a fixed size array type that refers to a specific type.\n\nThe created type will exist in the context that its element type exists in.\nIn particular, even though this function doesn't have a 'Context' constraint, it is *not* safe to let the returned type escape the scope of its context"
 
 {- | Create a pointer type that points to a defined type.
 
@@ -519,6 +439,8 @@ For this reason, you will probably want to use 'pointerType' or 'pointerTypeWith
 typedPointerType :: Type -> Word -> Type
 typedPointerType (MkType elementType) addressSpace =
     MkType $ unsafePerformIO (Raw.pointerType elementType (fromIntegral addressSpace))
+
+wrapAsPure "voidType" 'Raw.voidTypeInContext ""
 
 {- | Create a generic pointer type.
 
@@ -538,34 +460,28 @@ pointerTypeWithAddressSpace addressSpace = typedPointerType voidType addressSpac
 {- | Create a vector type that contains a defined type and has a specific number of elements.
 
 The created type will exist in the context thats its element type exists in.
+In particular, even though this function does not have a 'Context' constraint, it is *not* safe to let the returned type escape past the scope of the element's context
 -}
 vectorType :: Type -> Int -> Type
 vectorType (MkType elementType) elementCount =
     MkType $ unsafePerformIO (Raw.vectorType elementType (fromIntegral elementCount))
 
-voidType :: (?context :: Context) => Type
-voidType = MkType $ unsafePerformIO $ withContext ?context Raw.voidTypeInContext
+wrapAsPure "labelType" 'Raw.labelTypeInContext ""
 
-labelType :: (?context :: Context) => Type
-labelType = MkType $ unsafePerformIO $ withContext ?context Raw.labelTypeInContext
+wrapAsPure "x86AMXType" 'Missing.x86AMXTypeInContext ""
 
-x86AMXType :: (?context :: Context) => Type
-x86AMXType = MkType $ unsafePerformIO $ withContext ?context Missing.x86AMXTypeInContext
+wrapAsPure "tokenType" 'Missing.tokenTypeInContext ""
 
-tokenType :: (?context :: Context) => Type
-tokenType = MkType $ unsafePerformIO $ withContext ?context Missing.tokenTypeInContext
-
-metadataType :: (?context :: Context) => Type
-metadataType = MkType $ unsafePerformIO $ withContext ?context Missing.metadataTypeInContext
+wrapAsPure "metadataType" 'Missing.metadataTypeInContext ""
 
 targetExtType :: (?context :: Context) => Text -> Storable.Vector Type -> Storable.Vector Int -> Type
-targetExtType name typeParams intParams = MkType $
+targetExtType name typeParams intParams = MkType $ do
+    let MkContext contextRef = ?context
     unsafePerformIO $
-        withContext ?context $ \contextRef ->
-            Text.Foreign.withCString name \nameCString ->
-                withTypeArray typeParams \typeParamPtr typeParamLength ->
-                    withUnsignedArray intParams \intParamPtr intParamLength -> do
-                        Missing.targetExtTypeInContext contextRef nameCString typeParamPtr typeParamLength intParamPtr intParamLength
+        Text.Foreign.withCString name \nameCString ->
+            withTypeArray typeParams \typeParamPtr typeParamLength ->
+                withUnsignedArray intParams \intParamPtr intParamLength -> do
+                    Missing.targetExtTypeInContext contextRef nameCString typeParamPtr typeParamLength intParamPtr intParamLength
 
 -- | Obtain the name for this target extension type.
 getTargetExtTypeName :: Type -> Text
@@ -586,15 +502,14 @@ wrapDirectly 'Missing.addGlobal ""
 wrapDirectly 'Missing.addGlobalInAddressSpace ""
 
 getNamedGlobal :: (MonadIO io) => Module -> Text -> io (Maybe Wrappers.Global)
-getNamedGlobal module_ name = liftIO do
-    withModule module_ \moduleRef -> do
-        Text.Foreign.withCStringLen name \(cstring, len) -> do
-            value <- Missing.getNamedGlobalWithLength moduleRef cstring (fromIntegral len)
-            if value == nullPtr
-                then
-                    pure Nothing
-                else
-                    pure $ Just (Wrappers.MkGlobal value)
+getNamedGlobal (MkModule moduleRef) name = liftIO do
+    Text.Foreign.withCStringLen name \(cstring, len) -> do
+        value <- Missing.getNamedGlobalWithLength moduleRef cstring (fromIntegral len)
+        if value == nullPtr
+            then
+                pure Nothing
+            else
+                pure $ Just (Wrappers.MkGlobal value)
 
 wrapDirectly 'Missing.getFirstGlobal ""
 
@@ -625,39 +540,33 @@ wrapDirectly 'Missing.isExternallyInitialized ""
 
 wrapDirectly 'Missing.setExternallyInitialized ""
 
--- | Dump a representation of a module to stderr.
-dumpModule :: (MonadIO io) => Module -> io ()
-dumpModule module_ = liftIO $
-    withModule module_ \moduleRef ->
-        Missing.dumpModule moduleRef
+wrapDirectly 'Missing.dumpModule "Dump a representation of a module to stderr."
 
 -- | Print a representation of a module to a file.
 printModuleToFile :: (MonadIO io) => Module -> OsPath -> io ()
-printModuleToFile module_ filePath = liftIO do
+printModuleToFile (MkModule module_) filePath = liftIO do
     -- TODO: use the underlying ShortByteString directly instead of going via string
     filePathString <- OsPath.decodeFS filePath
     withCString filePathString \filePathCString -> do
-        withModule module_ \module_ -> do
-            withErrorMessage (Just ("printModuleToFile _ \"" <> Text.pack filePathString <> "\"")) \errorMessagePtr -> do
-                Missing.printModuleToFile module_ filePathCString errorMessagePtr
+        withErrorMessage (Just ("printModuleToFile _ \"" <> Text.pack filePathString <> "\"")) \errorMessagePtr -> do
+            Missing.printModuleToFile module_ filePathCString errorMessagePtr
 
 printModuleToText :: Module -> Text
-printModuleToText module_ = unsafePerformIO do
-    withModule module_ \module_ -> mask_ do
-        cstring <- Missing.printModuleToString module_
-        result <- Text.Foreign.peekCString cstring
-        Raw.disposeMessage cstring
-        pure result
+printModuleToText (MkModule module_) = unsafePerformIO $ mask_ do
+    cstring <- Missing.printModuleToString module_
+    result <- Text.Foreign.peekCString cstring
+    Raw.disposeMessage cstring
+    pure result
 
 instance Show Module where
     show module_ = Text.unpack (printModuleToText module_)
 
 -- | Append a basic block to the end of a function.
 appendBasicBlock :: (?context :: Context, MonadIO io) => Value -> Text -> io BasicBlock
-appendBasicBlock (MkValue function) name = liftIO $
-    withContext ?context \contextRef ->
-        Text.Foreign.withCString name \cname ->
-            MkBlock <$> Raw.appendBasicBlockInContext contextRef function cname
+appendBasicBlock (MkValue function) name = liftIO $ do
+    let MkContext contextRef = ?context
+    Text.Foreign.withCString name \cname ->
+        MkBlock <$> Raw.appendBasicBlockInContext contextRef function cname
 
 wrapDirectlyPure 'Raw.constInt "Obtain a constant value for an integer type.\n\nThe returned value corresponds to a llvm::ConstantInt."
 
@@ -680,7 +589,8 @@ data NullTermination
 This wraps LLVMConstStringInContext2.
 -}
 constString :: (?context :: Context) => Text -> NullTermination -> Value
-constString text nullTermination = unsafePerformIO $ withContext ?context \contextRef ->
+constString text nullTermination = unsafePerformIO $ do
+    let MkContext contextRef = ?context
     Text.Foreign.withCStringLen text \(cstring, length) -> do
         let don'tNullTerminate = case nullTermination of
                 NullTerminate -> Raw.false
@@ -833,15 +743,15 @@ copyAllMetadata (MkGlobal global) = liftIO do
         Missing.disposeValueMetadataEntries pointer
         pure vector
 
-wrapDirectly 'Raw.constNull "Obtain a constant value referring to the null instance of a type.\n\nIf you want to create a null /pointer/, use 'constNullPointer' instead."
+wrapDirectlyPure 'Raw.constNull "Obtain a constant value referring to the null instance of a type.\n\nIf you want to create a null /pointer/, use 'constNullPointer' instead."
 
-wrapDirectly 'Raw.constAllOnes "Obtain a constant value referring to the instance of a type consisting of all ones. "
+wrapDirectlyPure 'Raw.constAllOnes "Obtain a constant value referring to the instance of a type consisting of all ones. "
 
-wrapDirectly 'Raw.getUndef "Obtain a constant value referring to an undefined value of a type."
+wrapDirectlyPure 'Raw.getUndef "Obtain a constant value referring to an undefined value of a type."
 
-wrapDirectly 'Missing.getPoison "Obtain a constant value referring to a poison value of a type. "
+wrapDirectlyPure 'Missing.getPoison "Obtain a constant value referring to a poison value of a type. "
 
-wrapDirectly 'Raw.isNull "Determine whether a value instance is null."
+wrapDirectlyPure 'Raw.isNull "Determine whether a value instance is null."
 
 -- | Obtain a constant value of a null pointer
 constNullPointer :: (?context :: Context) => Value
@@ -1061,15 +971,15 @@ This uses LLVMIntrinsicCopyOverloadedName2 internally.
 -}
 intrinsicOverloadedName :: Module -> Int -> Storable.Vector Type -> Text
 intrinsicOverloadedName module_ intrinsicID arguments = unsafePerformIO do
-    withModule module_ \moduleRef -> do
-        withTypeArray arguments \argumentPtr argumentSize -> do
-            alloca \sizePtr -> do
-                cstring <- Missing.intrinsicCopyOverloadedName2 moduleRef (fromIntegral intrinsicID) argumentPtr (fromIntegral argumentSize) sizePtr
-                size <- peek sizePtr
-                text <- Text.Foreign.peekCStringLen (cstring, fromIntegral size)
+    let MkModule moduleRef = module_
+    withTypeArray arguments \argumentPtr argumentSize -> do
+        alloca \sizePtr -> do
+            cstring <- Missing.intrinsicCopyOverloadedName2 moduleRef (fromIntegral intrinsicID) argumentPtr (fromIntegral argumentSize) sizePtr
+            size <- peek sizePtr
+            text <- Text.Foreign.peekCStringLen (cstring, fromIntegral size)
 
-                Raw.disposeMessage cstring
-                pure text
+            Raw.disposeMessage cstring
+            pure text
 
 wrapDirectly 'Missing.intrinsicIsOverloaded "Obtain if the intrinsic identified by the given ID is overloaded."
 
@@ -1130,9 +1040,9 @@ wrapDirectly 'Missing.addTargetDependentFunctionAttr ""
 wrapDirectly 'Missing.setTarget "Set the target triple for a module."
 
 verifyModule :: (MonadIO io) => Module -> io ()
-verifyModule module_ = liftIO $
-    withModule module_ \moduleRef ->
-        withErrorMessage (Just "verifyModule") (Missing.verifyModule moduleRef (unwrapVerifierFailureAction ReturnStatusAction))
+verifyModule module_ = liftIO $ do
+    let MkModule moduleRef = module_
+    withErrorMessage (Just "verifyModule") (Missing.verifyModule moduleRef (unwrapVerifierFailureAction ReturnStatusAction))
 
 wrapDirectly 'Missing.verifyFunction ""
 
@@ -1147,11 +1057,11 @@ wrapAsPure "printValueToText" 'Missing.printValueToString "Return a string repre
 instance Show Value where
     show value = Text.unpack (printValueToText value)
 
-
 getParam :: (HasCallStack) => Value -> Int -> Value
 getParam (MkValue function) index = unsafePerformIO do
     parameterCount <- Raw.countParams function
-    if index >= 0 && index < fromIntegral parameterCount then 
-        MkValue <$> Raw.getParam function (fromIntegral index)
-    else
-        error $ "getParam: Index " <> show index <> " out of bounds for a function with " <> show parameterCount <> " parameters"
+    if index >= 0 && index < fromIntegral parameterCount
+        then
+            MkValue <$> Raw.getParam function (fromIntegral index)
+        else
+            error $ "getParam: Index " <> show index <> " out of bounds for a function with " <> show parameterCount <> " parameters"

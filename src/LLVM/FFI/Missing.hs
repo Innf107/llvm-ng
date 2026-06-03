@@ -653,7 +653,7 @@ foreign import capi unsafe "llvm-c/Core.h LLVMGetPoison"
     getPoison :: Raw.TypeRef -> IO Raw.ValueRef
 
 foreign import capi unsafe "llvm-c/Core.h LLVMGetNamedFunctionWithLength"
-    getNamedFunctionWithLength :: Raw.ModuleRef -> CString -> CSize -> IO Raw.ValueRef
+    getNamedFunctionWithLength :: Raw.ModuleRef -> CStringLenAsText -> CSize -> IO (MightBeNull Raw.ValueRef)
 
 foreign import capi unsafe "llvm-c/Core.h LLVMIsFunctionVarArg"
     isFunctionVarArg :: FunctionTypeRef -> IO Raw.Bool
@@ -1074,3 +1074,9 @@ foreign import capi unsafe "llvm-c/Core.h &LLVMContextDispose"
 
 foreign import capi unsafe "llvm-c/Core.h &LLVMDisposeBuilder"
     disposeBuilder :: FinalizerPtr Raw.Builder
+
+foreign import capi unsafe "llvm-c/Core.h LLVMAddFunction"
+    addFunction :: Raw.ModuleRef -> CString -> FunctionTypeRef -> IO Raw.ValueRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMArrayType2"
+    arrayType2 :: Raw.TypeRef -> Word64 -> IO Raw.TypeRef

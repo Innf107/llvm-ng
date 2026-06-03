@@ -21,16 +21,11 @@ import LLVM.Internal.TH.Util (cEnum, foreignPointerWrapper)
 import System.OsPath (OsPath)
 import System.OsPath qualified as OsPath
 
-newtype Context = MkContext (ForeignPtr Raw.Context)
+newtype Context = MkContext (Ptr Raw.Context)
 
-withContext :: Context -> (Raw.ContextRef -> IO a) -> IO a
-withContext (MkContext foreignPtr) cont = withForeignPtr foreignPtr cont
+newtype Module = MkModule (Ptr Raw.Module)
 
-newtype Module = MkModule (ForeignPtr Raw.Module)
-
-withModule :: Module -> (Raw.ModuleRef -> IO a) -> IO a
-withModule (MkModule foreignPtr) cont = withForeignPtr foreignPtr cont
-
+-- TODO: this might still be problematic since the builder references the context
 newtype Builder = MkBuilder (ForeignPtr Raw.Builder)
 
 withBuilder :: Builder -> (Raw.BuilderRef -> IO a) -> IO a

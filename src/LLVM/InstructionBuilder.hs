@@ -25,7 +25,7 @@ import LLVM.Internal.TH (wrapAs, wrapDirectly)
 import LLVM.Internal.Wrappers (
     BasicBlock (..),
     Builder (..),
-    Context,
+    Context (..),
     FastMathFlags (..),
     FunctionType,
     FunctionTypeRef,
@@ -36,12 +36,12 @@ import LLVM.Internal.Wrappers (
     Value (..),
     unsafeVectorFromCArray,
     withBuilder,
-    withContext,
     withValueArray,
  )
 
 createBuilder :: (?context :: Context, MonadIO io) => io Builder
-createBuilder = liftIO $ withContext ?context \context -> do
+createBuilder = liftIO $ do
+    let MkContext context = ?context
     rawBuilder <- Raw.createBuilderInContext context
     foreignPtr <- newForeignPtr Missing.disposeBuilder rawBuilder
     pure (MkBuilder foreignPtr)

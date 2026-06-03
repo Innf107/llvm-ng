@@ -5,11 +5,11 @@ module LLVM.Target (
     ByteOrdering (..),
     TargetData (..),
     Target (..),
-    TargetMachine(..),
+    TargetMachine (..),
     CodeGenOptLevel (..),
-    RelocMode(..),
-    CodeModel(..),
-    CodeGenFileType(..),
+    RelocMode (..),
+    CodeModel (..),
+    CodeGenFileType (..),
 ) where
 
 import Control.Monad.IO.Class (MonadIO (..))
@@ -46,7 +46,8 @@ wrapDirectly 'Missing.initializeNativeAsmPrinter "The main program should call t
 wrapDirectly 'Missing.initializeNativeDisassembler "The main program should call this function to initialize the disassembler for the native target corresponding to the host."
 
 getModuleDataLayout :: (MonadIO io) => Module -> io TargetData
-getModuleDataLayout module_ = liftIO $ withModule module_ \moduleRef -> do
+getModuleDataLayout module_ = liftIO do
+    let MkModule moduleRef = module_
     dataRef <- Missing.getModuleDataLayout moduleRef
     MkTargetData <$> Foreign.newForeignPtr Missing.disposeTargetData dataRef
 
@@ -123,20 +124,20 @@ This wraps several c++ only classes (among them a file stream). Returns any erro
 targetMachineEmitToFile :: (MonadIO io) => TargetMachine -> Module -> OsPath -> CodeGenFileType -> io ()
 targetMachineEmitToFile targetMachine module_ filePath codeGenFileType =
     liftIO $ withTargetMachine targetMachine \targetMachineRef -> do
+        let MkModule moduleRef = module_
         pathString <- OsPath.decodeFS filePath
-        withModule module_ \moduleRef ->
-            withOsPath filePath \pathCString -> do
-                withErrorMessage (Just $ "targetMachineEmitToFile _ _ \"" <> Text.pack pathString <> "\"" <> Text.pack (show codeGenFileType)) do
-                    Missing.targetMachineEmitToFile targetMachineRef moduleRef pathCString (unwrapCodeGenFileType codeGenFileType)
+        withOsPath filePath \pathCString -> do
+            withErrorMessage (Just $ "targetMachineEmitToFile _ _ \"" <> Text.pack pathString <> "\"" <> Text.pack (show codeGenFileType)) do
+                Missing.targetMachineEmitToFile targetMachineRef moduleRef pathCString (unwrapCodeGenFileType codeGenFileType)
 
 -- | Compile the LLVM IR stored in the given module and store the result in the memory buffer.
 targetMachineEmitToMemoryBuffer :: (MonadIO io) => TargetMachine -> Module -> CodeGenFileType -> MemoryBuffer -> io ()
 targetMachineEmitToMemoryBuffer targetMachine module_ codegenFileType buffer =
-    liftIO $ withTargetMachine targetMachine \targetMachineRef ->
-        withModule module_ \moduleRef ->
-            withMemoryBuffer buffer \bufferRef ->
-                withErrorMessage (Just "targetMachineEmitToMemoryBuffer") \errorMessagePtr -> do
-                    Missing.targetMachineEmitToMemoryBuffer targetMachineRef moduleRef (unwrapCodeGenFileType codegenFileType) errorMessagePtr bufferRef
+    liftIO $ withTargetMachine targetMachine \targetMachineRef -> do
+        let MkModule moduleRef = module_
+        withMemoryBuffer buffer \bufferRef ->
+            withErrorMessage (Just "targetMachineEmitToMemoryBuffer") \errorMessagePtr -> do
+                Missing.targetMachineEmitToMemoryBuffer targetMachineRef moduleRef (unwrapCodeGenFileType codegenFileType) errorMessagePtr bufferRef
 
 wrapDirectly 'Missing.getDefaultTargetTriple "Get a triple for the host machine as a string."
 wrapDirectly 'Missing.normalizeTargetTriple "Normalize a target triple."
