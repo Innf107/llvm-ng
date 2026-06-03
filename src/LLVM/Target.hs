@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module LLVM.Target (
@@ -12,7 +13,10 @@ module LLVM.Target (
     CodeGenFileType (..),
 ) where
 
+import Control.Exception (mask_)
+import Control.Exception.Base (bracket)
 import Control.Monad.IO.Class (MonadIO (..))
+import Data.Foldable (for_)
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Foreign qualified as Text.Foreign
@@ -21,7 +25,7 @@ import Foreign qualified
 import LLVM.FFI.Missing qualified as Missing
 import LLVM.Internal.Error (withErrorMessage)
 import LLVM.Internal.TH (wrapAs, wrapDirectly)
-import LLVM.Internal.Wrappers
+import LLVM.Internal.Wrappers hiding (TargetMachineOptions)
 import System.OsPath (OsPath)
 import System.OsPath qualified as OsPath
 
@@ -94,15 +98,42 @@ wrapDirectly 'Missing.getTargetDescription "Returns the description of a target.
 wrapDirectly 'Missing.targetHasJIT "Returns if the target has a JIT."
 wrapDirectly 'Missing.targetHasTargetMachine "Returns if the target has a TargetMachine associated."
 wrapDirectly 'Missing.targetHasAsmBackend "Returns if the target as an ASM backend (required for emitting output)"
-wrapDirectly 'Missing.createTargetMachineOptions "Create a new set of options for a 'TargetMachine'."
 
-wrapDirectly 'Missing.targetMachineOptionsSetCPU ""
-wrapDirectly 'Missing.targetMachineOptionsSetFeatures "Set the list of features for the target machine."
-wrapDirectly 'Missing.targetMachineOptionsSetABI ""
-wrapDirectly 'Missing.targetMachineSetCodeGenOptLevel ""
-wrapDirectly 'Missing.targetMachineSetRelocMode ""
-wrapDirectly 'Missing.targetMachineSetCodeModel ""
-wrapDirectly 'Missing.createTargetMachineWithOptions "Creates a new 'TargetMachine'"
+data TargetMachineOptions = TargetMachineOptions
+    { cpu :: Maybe Text
+    , features :: Maybe Text
+    , abi :: Maybe Text
+    , codeGenOptLevel :: Maybe CodeGenOptLevel
+    , relocMode :: Maybe RelocMode
+    , codeModel :: Maybe CodeModel
+    }
+defaultTargetMachineOptions :: TargetMachineOptions
+defaultTargetMachineOptions =
+    TargetMachineOptions
+        { cpu = Nothing
+        , features = Nothing
+        , abi = Nothing
+        , codeGenOptLevel = Nothing
+        , relocMode = Nothing
+        , codeModel = Nothing
+        }
+
+createTargetMachineWithOptions :: (MonadIO io) => Target -> Text -> TargetMachineOptions -> io TargetMachine
+createTargetMachineWithOptions (MkTarget target) triple options = liftIO do
+    bracket
+        Missing.createTargetMachineOptions
+        Missing.disposeTargetMachineOptions
+        \llvmOptions -> Text.Foreign.withCString triple \tripleCString -> do
+            for_ options.cpu \cpuText -> Text.Foreign.withCString cpuText (Missing.targetMachineOptionsSetCPU llvmOptions)
+            for_ options.features \featuresText -> Text.Foreign.withCString featuresText (Missing.targetMachineOptionsSetFeatures llvmOptions)
+            for_ options.abi \abiText -> Text.Foreign.withCString abiText (Missing.targetMachineOptionsSetABI llvmOptions)
+            for_ options.codeGenOptLevel \optLevel -> Missing.targetMachineOptionsSetCodeGenOptLevel llvmOptions (unwrapCodeGenOptLevel optLevel)
+            for_ options.relocMode \relocMode -> Missing.targetMachineOptionsSetRelocMode llvmOptions (unwrapRelocMode relocMode)
+
+            mask_ do
+                rawTargetMachine <- Missing.createTargetMachineWithOptions target tripleCString llvmOptions
+                MkTargetMachine <$> Foreign.newForeignPtr Missing.disposeTargetMachine rawTargetMachine
+
 wrapDirectly 'Missing.createTargetMachine "Creates a new 'TargetMachine'"
 
 -- TODO: we might want to combine the get and has functions here

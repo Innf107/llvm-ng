@@ -935,10 +935,10 @@ foreign import capi unsafe "llvm-c/Target.h LLVMTargetHasAsmBackend"
     targetHasAsmBackend :: TargetRef -> IO Raw.Bool
 
 foreign import capi unsafe "llvm-c/TargetMachine.h LLVMCreateTargetMachineOptions"
-    createTargetMachineOptions :: IO (AsForeignPtrWith "disposeTargetMachineOptions" TargetMachineOptionsRef)
+    createTargetMachineOptions :: IO TargetMachineOptionsRef
 
-foreign import capi unsafe "llvm-c/TargetMachine.h &LLVMDisposeTargetMachineOptions"
-    disposeTargetMachineOptions :: FinalizerPtr OpaqueTargetMachineOptions
+foreign import capi unsafe "llvm-c/TargetMachine.h LLVMDisposeTargetMachineOptions"
+    disposeTargetMachineOptions :: TargetMachineOptionsRef -> IO ()
 
 foreign import capi unsafe "llvm-c/TargetMachine.h LLVMTargetMachineOptionsSetCPU"
     targetMachineOptionsSetCPU :: TargetMachineOptionsRef -> CString -> IO ()
@@ -948,6 +948,15 @@ foreign import capi unsafe "llvm-c/TargetMachine.h LLVMTargetMachineOptionsSetFe
 
 foreign import capi unsafe "llvm-c/TargetMachine.h LLVMTargetMachineOptionsSetABI"
     targetMachineOptionsSetABI :: TargetMachineOptionsRef -> CString -> IO ()
+
+foreign import capi unsafe "llvm-c/TargetMachine.h LLVMTargetMachineOptionsSetCodeGenOptLevel"
+    targetMachineOptionsSetCodeGenOptLevel :: TargetMachineOptionsRef -> RawCodeGenOptLevel -> IO ()
+
+foreign import capi unsafe "llvm-c/TargetMachine.h LLVMTargetMachineOptionsSetRelocMode"
+    targetMachineOptionsSetRelocMode :: TargetMachineOptionsRef -> RawRelocMode -> IO ()
+
+foreign import capi unsafe "llvm-c/TargetMachine.h LLVMTargetMachineOptionsSetCodeModel"
+    targetMachineOptionsSetCodeModel :: TargetMachineOptionsRef -> RawCodeModel -> IO ()
 
 foreign import capi unsafe "llvm-c/TargetMachine.h LLVMTargetMachineOptionsSetCodeGenOptLevel"
     targetMachineSetCodeGenOptLevel :: TargetMachineOptionsRef -> RawCodeGenOptLevel -> IO ()
