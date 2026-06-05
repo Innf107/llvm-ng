@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE ViewPatterns #-}
 -- Our TH occasionally emits unnecessary 'fromIntegral' calls for simplicity.
@@ -19,6 +20,24 @@ module LLVM.Core (
     Target.initializeAllTargetInfos,
     Target.initializeNativeTarget,
     verifyModule,
+    runPasses,
+    runPassesOnFunction,
+    defaultPassBuilderOptions,
+    PassBuilderOptions (
+        verifyEach,
+        debugLogging,
+        aaPipeline,
+        loopInterleaving,
+        loopVectorization,
+        slpVectorization,
+        loopUnrolling,
+        forgetAllSCEVInLoopUnroll,
+        licmMssaOptCap,
+        licmMssaNoAccForPromotionCap,
+        callGraphProfile,
+        mergeFunctions,
+        inlinerThreshold
+    ),
 
     -- * LLVM Types
     functionType,
@@ -315,11 +334,12 @@ module LLVM.Core (
     getGEPSourceElementType,
 ) where
 
-import Control.Exception (mask_)
+import Control.Exception (bracket, mask_)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as ByteString
 import Data.Coerce (coerce)
+import Data.Foldable (for_)
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Foreign qualified as Text.Foreign
@@ -331,8 +351,9 @@ import Foreign.C (CUInt, withCString)
 import GHC.Stack (HasCallStack)
 import LLVM.Core.Context
 import LLVM.FFI.Core qualified as Raw
+import LLVM.FFI.Missing (disposePassBuilderOptions)
 import LLVM.FFI.Missing qualified as Missing
-import LLVM.Internal.Error (withErrorMessage)
+import LLVM.Internal.Error (handleErrorRef, withErrorMessage)
 import LLVM.Internal.TH (wrapAs, wrapAsPure, wrapDirectly, wrapDirectlyPure)
 import LLVM.Internal.Wrappers (
     Attribute,
@@ -346,6 +367,7 @@ import LLVM.Internal.Wrappers (
     MetaData,
     Module (..),
     OperandBundle,
+    PassBuilderOptionsRef,
     RealPredicate (..),
     TailCallKind (..),
     TargetData,
@@ -355,6 +377,7 @@ import LLVM.Internal.Wrappers (
     functionTypeAsType,
     unsafeTypeAsFunctionType,
     unwrapVerifierFailureAction,
+    withTargetMachine,
     withTypeArray,
     withUnsignedArray,
     wrapVerifierFailureAction,
@@ -1065,3 +1088,91 @@ getParam (MkValue function) index = unsafePerformIO do
             MkValue <$> Raw.getParam function (fromIntegral index)
         else
             error $ "getParam: Index " <> show index <> " out of bounds for a function with " <> show parameterCount <> " parameters"
+
+data PassBuilderOptions = MkPassBuilderOptions
+    { verifyEach :: Maybe Bool
+    , debugLogging :: Maybe Bool
+    , aaPipeline :: Maybe Text
+    , loopInterleaving :: Maybe Bool
+    , loopVectorization :: Maybe Bool
+    , slpVectorization :: Maybe Bool
+    , loopUnrolling :: Maybe Bool
+    , forgetAllSCEVInLoopUnroll :: Maybe Bool
+    , licmMssaOptCap :: Maybe Int
+    , licmMssaNoAccForPromotionCap :: Maybe Int
+    , callGraphProfile :: Maybe Bool
+    , mergeFunctions :: Maybe Bool
+    , inlinerThreshold :: Maybe Int
+    }
+defaultPassBuilderOptions :: PassBuilderOptions
+defaultPassBuilderOptions =
+    MkPassBuilderOptions
+        { verifyEach = Nothing
+        , debugLogging = Nothing
+        , aaPipeline = Nothing
+        , loopInterleaving = Nothing
+        , loopVectorization = Nothing
+        , slpVectorization = Nothing
+        , loopUnrolling = Nothing
+        , forgetAllSCEVInLoopUnroll = Nothing
+        , licmMssaOptCap = Nothing
+        , licmMssaNoAccForPromotionCap = Nothing
+        , callGraphProfile = Nothing
+        , mergeFunctions = Nothing
+        , inlinerThreshold = Nothing
+        }
+
+withPassBuilderOptions :: PassBuilderOptions -> (PassBuilderOptionsRef -> IO a) -> IO a
+withPassBuilderOptions options cont =
+    bracket
+        Missing.createPassBuilderOptions
+        disposePassBuilderOptions
+        \optionsRef -> do
+            for_ options.verifyEach \verifyEach -> Missing.passBuilderOptionsSetVerifyEach optionsRef (Raw.consBool verifyEach)
+            for_ options.debugLogging \debugLogging -> Missing.passBuilderOptionsSetDebugLogging optionsRef (Raw.consBool debugLogging)
+            for_ options.aaPipeline \aaPipeline -> Text.Foreign.withCString aaPipeline $ Missing.passBuilderOptionsSetAAPipeline optionsRef
+            for_ options.loopInterleaving \loopInterleaving -> Missing.passBuilderOptionsSetLoopInterleaving optionsRef (Raw.consBool loopInterleaving)
+            for_ options.loopVectorization \loopVectorization -> Missing.passBuilderOptionsSetLoopVectorization optionsRef (Raw.consBool loopVectorization)
+            for_ options.slpVectorization \slpVectorization -> Missing.passBuilderOptionsSetSLPVectorization optionsRef (Raw.consBool slpVectorization)
+            for_ options.loopUnrolling \loopUnrolling -> Missing.passBuilderOptionsSetLoopUnrolling optionsRef (Raw.consBool loopUnrolling)
+            for_ options.forgetAllSCEVInLoopUnroll \forgetAllSCEVInLoopUnroll -> Missing.passBuilderOptionsSetForgetAllSCEVInLoopUnroll optionsRef (Raw.consBool forgetAllSCEVInLoopUnroll)
+            for_ options.licmMssaOptCap \licmMssaOptCap -> Missing.passBuilderOptionsSetLicmMssaOptCap optionsRef (fromIntegral licmMssaOptCap)
+            for_ options.licmMssaNoAccForPromotionCap \licmMssaNoAccForPromotionCap -> Missing.passBuilderOptionsSetLicmMssaNoAccForPromotionCap optionsRef (fromIntegral licmMssaNoAccForPromotionCap)
+            for_ options.callGraphProfile \callGraphProfile -> Missing.passBuilderOptionsSetCallGraphProfile optionsRef (Raw.consBool callGraphProfile)
+            for_ options.mergeFunctions \mergeFunctions -> Missing.passBuilderOptionsSetMergeFunctions optionsRef (Raw.consBool mergeFunctions)
+            for_ options.inlinerThreshold \inlinerThreshold -> Missing.passBuilderOptionsSetInlinerThreshold optionsRef (fromIntegral inlinerThreshold)
+            cont optionsRef
+
+{- | Construct and run a set of passes over a module.
+
+This function takes a string with the passes that should be used.
+The format of this string is the same as opt's -passes argument for the new pass manager.
+Individual passes may be specified, separated by commas.
+Full pipelines may also be invoked using default<O3> and friends.
+
+See opt for full reference of the Passes format.
+-}
+runPasses :: Module -> Text -> Maybe Wrappers.TargetMachine -> PassBuilderOptions -> IO ()
+runPasses (MkModule module_) passes targetMachine options = do
+    withPassBuilderOptions options \optionsRef -> do
+        Text.Foreign.withCString passes \passesCString -> do
+            withMaybeTargetMachine targetMachine \targetMachineRef -> do
+                errorRef <- Missing.runPasses module_ passesCString targetMachineRef optionsRef
+                handleErrorRef (Just "runPasses") errorRef
+
+withMaybeTargetMachine :: Maybe Wrappers.TargetMachine -> (Wrappers.TargetMachineRef -> IO a) -> IO a
+withMaybeTargetMachine maybe cont = case maybe of
+    Nothing -> cont nullPtr
+    Just targetMachine -> withTargetMachine targetMachine cont
+
+{- |  Construct and run a set of passes over a function.
+
+This function behaves the same as LLVMRunPasses, but operates on a single function instead of an entire module.
+-}
+runPassesOnFunction :: Value -> Text -> Maybe Wrappers.TargetMachine -> PassBuilderOptions -> IO ()
+runPassesOnFunction (MkValue function_) passes targetMachine options = do
+    withPassBuilderOptions options \optionsRef -> do
+        Text.Foreign.withCString passes \passesCString -> do
+            withMaybeTargetMachine targetMachine \targetMachineRef -> do
+                errorRef <- Missing.runPassesOnFunction function_ passesCString targetMachineRef optionsRef
+                handleErrorRef (Just "runPassesOnFunction") errorRef

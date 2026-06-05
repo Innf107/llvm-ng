@@ -494,3 +494,9 @@ cEnum
   , "PrintMessageAction"
   , "ReturnStatusAction"
   ]
+
+data OpaquePassBuilderOptions
+type PassBuilderOptionsRef = Ptr OpaquePassBuilderOptions
+
+data OpaqueError
+type ErrorRef = Ptr OpaqueError

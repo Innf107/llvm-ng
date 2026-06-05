@@ -1089,3 +1089,57 @@ foreign import capi unsafe "llvm-c/Core.h LLVMAddFunction"
 
 foreign import capi unsafe "llvm-c/Core.h LLVMArrayType2"
     arrayType2 :: Raw.TypeRef -> Word64 -> IO Raw.TypeRef
+
+foreign import capi unsafe "llvm-c/Transforms/PassBuilder.h LLVMRunPasses"
+    runPasses :: Raw.ModuleRef -> CString -> TargetMachineRef -> PassBuilderOptionsRef -> IO ErrorRef
+
+foreign import capi unsafe "llvm-c/Transforms/PassBuilder.h LLVMRunPassesOnFunction"
+    runPassesOnFunction :: Raw.ValueRef -> CString -> TargetMachineRef -> PassBuilderOptionsRef -> IO ErrorRef
+
+foreign import capi unsafe "llvm-c/Transforms/PassBuilder.h LLVMCreatePassBuilderOptions"
+    createPassBuilderOptions :: IO PassBuilderOptionsRef
+
+foreign import capi unsafe "llvm-c/Transforms/PassBuilder.h LLVMPassBuilderOptionsSetVerifyEach"
+    passBuilderOptionsSetVerifyEach :: PassBuilderOptionsRef -> Raw.Bool -> IO ()
+
+foreign import capi unsafe "llvm-c/Transforms/PassBuilder.h LLVMPassBuilderOptionsSetDebugLogging"
+    passBuilderOptionsSetDebugLogging :: PassBuilderOptionsRef -> Raw.Bool -> IO ()
+
+foreign import capi unsafe "llvm-c/Transforms/PassBuilder.h LLVMPassBuilderOptionsSetAAPipeline"
+    passBuilderOptionsSetAAPipeline :: PassBuilderOptionsRef -> CString -> IO ()
+
+foreign import capi unsafe "llvm-c/Transforms/PassBuilder.h LLVMPassBuilderOptionsSetLoopInterleaving"
+    passBuilderOptionsSetLoopInterleaving :: PassBuilderOptionsRef -> Raw.Bool -> IO ()
+
+foreign import capi unsafe "llvm-c/Transforms/PassBuilder.h LLVMPassBuilderOptionsSetLoopVectorization"
+    passBuilderOptionsSetLoopVectorization :: PassBuilderOptionsRef -> Raw.Bool -> IO ()
+
+foreign import capi unsafe "llvm-c/Transforms/PassBuilder.h LLVMPassBuilderOptionsSetSLPVectorization"
+    passBuilderOptionsSetSLPVectorization :: PassBuilderOptionsRef -> Raw.Bool -> IO ()
+
+foreign import capi unsafe "llvm-c/Transforms/PassBuilder.h LLVMPassBuilderOptionsSetLoopUnrolling"
+    passBuilderOptionsSetLoopUnrolling :: PassBuilderOptionsRef -> Raw.Bool -> IO ()
+
+foreign import capi unsafe "llvm-c/Transforms/PassBuilder.h LLVMPassBuilderOptionsSetForgetAllSCEVInLoopUnroll"
+    passBuilderOptionsSetForgetAllSCEVInLoopUnroll :: PassBuilderOptionsRef -> Raw.Bool -> IO ()
+
+foreign import capi unsafe "llvm-c/Transforms/PassBuilder.h LLVMPassBuilderOptionsSetLicmMssaOptCap"
+    passBuilderOptionsSetLicmMssaOptCap :: PassBuilderOptionsRef -> CUInt -> IO ()
+
+foreign import capi unsafe "llvm-c/Transforms/PassBuilder.h LLVMPassBuilderOptionsSetLicmMssaNoAccForPromotionCap"
+    passBuilderOptionsSetLicmMssaNoAccForPromotionCap :: PassBuilderOptionsRef -> CUInt -> IO ()
+
+foreign import capi unsafe "llvm-c/Transforms/PassBuilder.h LLVMPassBuilderOptionsSetCallGraphProfile"
+    passBuilderOptionsSetCallGraphProfile :: PassBuilderOptionsRef -> Raw.Bool -> IO ()
+
+foreign import capi unsafe "llvm-c/Transforms/PassBuilder.h LLVMPassBuilderOptionsSetMergeFunctions"
+    passBuilderOptionsSetMergeFunctions :: PassBuilderOptionsRef -> Raw.Bool -> IO ()
+
+foreign import capi unsafe "llvm-c/Transforms/PassBuilder.h LLVMPassBuilderOptionsSetInlinerThreshold"
+    passBuilderOptionsSetInlinerThreshold :: PassBuilderOptionsRef -> CInt -> IO ()
+
+foreign import capi unsafe "llvm-c/Transforms/PassBuilder.h LLVMDisposePassBuilderOptions"
+    disposePassBuilderOptions :: PassBuilderOptionsRef -> IO ()
+
+foreign import capi unsafe "llvm-c/Error.h LLVMGetErrorMessage"
+    getErrorMessage :: ErrorRef -> IO MessageCString

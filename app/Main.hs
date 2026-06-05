@@ -48,6 +48,8 @@ main = do
         fibResult <- LLVM.buildCall builder fibType fib [LLVM.constInt LLVM.int64Type 10 False] ""
         _ <- LLVM.buildRet builder fibResult
 
+        LLVM.runPasses module_ "default<O3>" Nothing (LLVM.defaultPassBuilderOptions {LLVM.verifyEach = Just True})
+
         LLVM.printModuleToFile module_ ([osp|example.ll|])
 
         LLVM.dumpModule module_
