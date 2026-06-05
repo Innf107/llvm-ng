@@ -21,23 +21,6 @@ module LLVM.Core (
     Target.initializeNativeTarget,
     verifyModule,
     runPasses,
-    runPassesOnFunction,
-    defaultPassBuilderOptions,
-    PassBuilderOptions (
-        verifyEach,
-        debugLogging,
-        aaPipeline,
-        loopInterleaving,
-        loopVectorization,
-        slpVectorization,
-        loopUnrolling,
-        forgetAllSCEVInLoopUnroll,
-        licmMssaOptCap,
-        licmMssaNoAccForPromotionCap,
-        callGraphProfile,
-        mergeFunctions,
-        inlinerThreshold
-    ),
 
     -- * LLVM Types
     functionType,
@@ -209,6 +192,39 @@ module LLVM.Core (
     getCallBrDefaultDest,
     getCallBrNumIndirectDests,
     getCallBrIndirectDest,
+
+    -- * Optimization Passes
+    runPasses,
+    runPassesOnFunction,
+    defaultPassBuilderOptions,
+    PassBuilderOptions (
+        verifyEach,
+        debugLogging,
+        aaPipeline,
+        loopInterleaving,
+        loopVectorization,
+        slpVectorization,
+        loopUnrolling,
+        forgetAllSCEVInLoopUnroll,
+        licmMssaOptCap,
+        licmMssaNoAccForPromotionCap,
+        callGraphProfile,
+        mergeFunctions,
+        inlinerThreshold
+    ),
+    verifyEach,
+    debugLogging,
+    aaPipeline,
+    loopInterleaving,
+    loopVectorization,
+    slpVectorization,
+    loopUnrolling,
+    forgetAllSCEVInLoopUnroll,
+    licmMssaOptCap,
+    licmMssaNoAccForPromotionCap,
+    callGraphProfile,
+    mergeFunctions,
+    inlinerThreshold,
 
     -- * Calling conventions
     ccallConv,
@@ -1089,6 +1105,16 @@ getParam (MkValue function) index = unsafePerformIO do
         else
             error $ "getParam: Index " <> show index <> " out of bounds for a function with " <> show parameterCount <> " parameters"
 
+{- | Options to be passed to an optimization pipeline like 'runPasses' or 'runPassesOnFunction'.
+
+Values of this type should be constructed by using 'defaultPassBuilderOptions' and overriding its record fields.
+Setting a field to 'Nothing' makes it use its default value.
+
+==== __Example__
+@
+defaultPassBuilderOptions { verifyEach = Just True, loopUnrolling = Just False }
+@
+-}
 data PassBuilderOptions = MkPassBuilderOptions
     { verifyEach :: Maybe Bool
     , debugLogging :: Maybe Bool
@@ -1104,6 +1130,7 @@ data PassBuilderOptions = MkPassBuilderOptions
     , mergeFunctions :: Maybe Bool
     , inlinerThreshold :: Maybe Int
     }
+
 defaultPassBuilderOptions :: PassBuilderOptions
 defaultPassBuilderOptions =
     MkPassBuilderOptions
@@ -1151,13 +1178,13 @@ withMaybeTargetMachine maybe cont = case maybe of
 {- | Construct and run a set of passes over a module.
 
 This function takes a string with the passes that should be used.
-The format of this string is the same as opt's -passes argument for the new pass manager.
+The format of this string is the same as opt's @-passes@ argument for the new pass manager.
 Individual passes may be specified, separated by commas.
-Full pipelines may also be invoked using default<O3> and friends.
+Full pipelines may also be invoked using @default\<O3\>@ and friends.
 
 See opt for full reference of the Passes format.
 -}
-runPasses :: MonadIO io => Module -> Text -> Maybe Wrappers.TargetMachine -> PassBuilderOptions -> io ()
+runPasses :: (MonadIO io) => Module -> Text -> Maybe Wrappers.TargetMachine -> PassBuilderOptions -> io ()
 runPasses (MkModule module_) passes targetMachine options = liftIO do
     withPassBuilderOptions options \optionsRef -> do
         Text.Foreign.withCString passes \passesCString -> do
@@ -1169,7 +1196,7 @@ runPasses (MkModule module_) passes targetMachine options = liftIO do
 
 This function behaves the same as LLVMRunPasses, but operates on a single function instead of an entire module.
 -}
-runPassesOnFunction :: MonadIO io => Value -> Text -> Maybe Wrappers.TargetMachine -> PassBuilderOptions -> io ()
+runPassesOnFunction :: (MonadIO io) => Value -> Text -> Maybe Wrappers.TargetMachine -> PassBuilderOptions -> io ()
 runPassesOnFunction (MkValue function_) passes targetMachine options = liftIO do
     withPassBuilderOptions options \optionsRef -> do
         Text.Foreign.withCString passes \passesCString -> do
