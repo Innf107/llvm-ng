@@ -1143,6 +1143,11 @@ withPassBuilderOptions options cont =
             for_ options.inlinerThreshold \inlinerThreshold -> Missing.passBuilderOptionsSetInlinerThreshold optionsRef (fromIntegral inlinerThreshold)
             cont optionsRef
 
+withMaybeTargetMachine :: Maybe Wrappers.TargetMachine -> (Wrappers.TargetMachineRef -> IO a) -> IO a
+withMaybeTargetMachine maybe cont = case maybe of
+    Nothing -> cont nullPtr
+    Just targetMachine -> withTargetMachine targetMachine cont
+
 {- | Construct and run a set of passes over a module.
 
 This function takes a string with the passes that should be used.
@@ -1152,25 +1157,20 @@ Full pipelines may also be invoked using default<O3> and friends.
 
 See opt for full reference of the Passes format.
 -}
-runPasses :: Module -> Text -> Maybe Wrappers.TargetMachine -> PassBuilderOptions -> IO ()
-runPasses (MkModule module_) passes targetMachine options = do
+runPasses :: MonadIO io => Module -> Text -> Maybe Wrappers.TargetMachine -> PassBuilderOptions -> io ()
+runPasses (MkModule module_) passes targetMachine options = liftIO do
     withPassBuilderOptions options \optionsRef -> do
         Text.Foreign.withCString passes \passesCString -> do
             withMaybeTargetMachine targetMachine \targetMachineRef -> do
                 errorRef <- Missing.runPasses module_ passesCString targetMachineRef optionsRef
                 handleErrorRef (Just "runPasses") errorRef
 
-withMaybeTargetMachine :: Maybe Wrappers.TargetMachine -> (Wrappers.TargetMachineRef -> IO a) -> IO a
-withMaybeTargetMachine maybe cont = case maybe of
-    Nothing -> cont nullPtr
-    Just targetMachine -> withTargetMachine targetMachine cont
-
 {- |  Construct and run a set of passes over a function.
 
 This function behaves the same as LLVMRunPasses, but operates on a single function instead of an entire module.
 -}
-runPassesOnFunction :: Value -> Text -> Maybe Wrappers.TargetMachine -> PassBuilderOptions -> IO ()
-runPassesOnFunction (MkValue function_) passes targetMachine options = do
+runPassesOnFunction :: MonadIO io => Value -> Text -> Maybe Wrappers.TargetMachine -> PassBuilderOptions -> io ()
+runPassesOnFunction (MkValue function_) passes targetMachine options = liftIO do
     withPassBuilderOptions options \optionsRef -> do
         Text.Foreign.withCString passes \passesCString -> do
             withMaybeTargetMachine targetMachine \targetMachineRef -> do
