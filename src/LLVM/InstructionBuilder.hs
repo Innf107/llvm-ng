@@ -27,7 +27,7 @@ import LLVM.Internal.Wrappers (
     Builder (..),
     Context (..),
     FastMathFlags (..),
-    FunctionType,
+    FunctionType (..),
     FunctionTypeRef,
     MetaData (..),
     OperandBundle,
@@ -365,7 +365,31 @@ buildPhi builder (MkType typeRef) incomingValues name = liftIO do
 
 wrapAs "buildCall" 'Missing.buildCall2 ""
 
-wrapDirectly 'Missing.buildCallWithOperandBundles ""
+buildCallWithOperandBundles ::
+    (MonadIO io) =>
+    Builder ->
+    FunctionType ->
+    Value ->
+    Storable.Vector Value ->
+    Strict.Vector (Text, Storable.Vector Value) ->
+    Text ->
+    io Value
+buildCallWithOperandBundles builder (MkFunctionType functionType) (MkValue function) arguments bundles varName = liftIO do
+    withBuilder builder \builderRef -> do
+        Text.Foreign.withCString varName \varNameCString -> do
+            withValueArray arguments \argumentPtr argumentLength -> do
+                rawBundles <- Storable.generateM (length bundles) \index -> do
+                    let (tag, arguments) = bundles Strict.! index
+                    Text.Foreign.withCStringLen tag \(tagCString, tagLength) -> do
+                        withValueArray arguments \argPtr argLength -> do
+                            Missing.createOperandBundle tagCString (fromIntegral tagLength) argPtr argLength
+                instruction <- Storable.unsafeWith rawBundles \bundlePointer -> do
+                    Missing.buildCallWithOperandBundles builderRef functionType function argumentPtr argumentLength bundlePointer (fromIntegral (length bundles)) varNameCString
+                
+                -- We immediately need to free all the silly operand bundle handles we just created
+                Storable.forM_ rawBundles \rawBundle ->
+                    Missing.disposeOperandBundle rawBundle
+                pure (MkValue instruction)
 
 wrapDirectly 'Raw.buildSelect ""
 

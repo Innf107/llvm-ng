@@ -1143,3 +1143,9 @@ foreign import capi unsafe "llvm-c/Transforms/PassBuilder.h LLVMDisposePassBuild
 
 foreign import capi unsafe "llvm-c/Error.h LLVMGetErrorMessage"
     getErrorMessage :: ErrorRef -> IO MessageCString
+
+foreign import capi unsafe "llvm-c/Core.h LLVMCreateOperandBundle"
+    createOperandBundle :: CString -> CSize -> Ptr Raw.ValueRef -> CUInt -> IO OperandBundleRef
+
+foreign import capi unsafe "llvm-c/Core.h LLVMDisposeOperandBundle"
+    disposeOperandBundle :: OperandBundleRef -> IO ()
