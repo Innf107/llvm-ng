@@ -1149,3 +1149,6 @@ foreign import capi unsafe "llvm-c/Core.h LLVMCreateOperandBundle"
 
 foreign import capi unsafe "llvm-c/Core.h LLVMDisposeOperandBundle"
     disposeOperandBundle :: OperandBundleRef -> IO ()
+
+foreign import capi unsafe "llvm-c/Core.h LLVMGetVersion"
+    llvmGetVersion :: Ptr CUInt -> Ptr CUInt -> Ptr CUInt -> IO ()

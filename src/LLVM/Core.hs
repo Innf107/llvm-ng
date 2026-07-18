@@ -8,6 +8,7 @@
 
 module LLVM.Core (
     -- * Common Operations
+    llvmVersion,
     withContext,
     withModule,
     addFunction,
@@ -403,6 +404,18 @@ import LLVM.Target qualified as Target
 import System.IO.Unsafe (unsafePerformIO)
 import System.OsPath (OsPath)
 import System.OsPath qualified as OsPath
+
+{-# NOINLINE llvmVersion #-}
+llvmVersion :: (Int, Int, Int)
+llvmVersion = unsafePerformIO do
+    alloca \majorPtr ->
+        alloca \minorPtr ->
+            alloca \patchPtr -> do
+                Missing.llvmGetVersion majorPtr minorPtr patchPtr
+                major <- peek majorPtr
+                minor <- peek minorPtr
+                patch <- peek patchPtr
+                pure (fromIntegral major, fromIntegral minor, fromIntegral patch)
 
 {- | Create a new, empty module in a specific context.
 
